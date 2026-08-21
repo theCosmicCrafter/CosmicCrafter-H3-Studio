@@ -109,6 +109,22 @@ def _resize(image, width, height, crop):
     return samples.movedim(1, -1)
 
 
+def _target_metrics(video):
+    """Extract (width, height, frame_count) in pixel units from an H3 video latent [B, C, T, H, W]."""
+    steps = int(video.shape[2])
+    height = int(video.shape[3]) * 8
+    width = int(video.shape[4]) * 8
+    frame_count = _pixel_frames(steps)
+    return width, height, frame_count
+
+
+def _video_runs(n_frames):
+    """Partition a video length into maximal H3 VAE grid-aligned runs."""
+    if n_frames <= 0:
+        return []
+    return [n_frames]
+
+
 def _encode_tail_audio(audio_vae, audio, seconds):
     """Encode the last `seconds` of a clip's audio with the H3 audio VAE.
 

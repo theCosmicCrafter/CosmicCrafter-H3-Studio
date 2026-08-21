@@ -31,9 +31,6 @@ def native_guide_status():
     guide's video and audio condition segments must both land relative to the
     *post-ref target origin*.
     """
-    import comfy.ldm.minimax.model as mm
-    import comfy.model_base as model_base
-
     out = {
         "packed_layout_available": False,
         "ref_aware_arbitrary_guides": False,
@@ -41,6 +38,12 @@ def native_guide_status():
         "native_keyframe_ref_merge": False,
         "native_keyframe_ref_audio_merge": False,
     }
+
+    try:
+        import comfy.ldm.minimax.model as mm
+        import comfy.model_base as model_base
+    except (ModuleNotFoundError, ImportError):
+        return out
 
     layout_cls = getattr(mm, "PackedLayout", None)
     if layout_cls is not None:
