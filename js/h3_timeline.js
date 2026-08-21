@@ -349,6 +349,12 @@ function setup(node) {
                 this._clear(ctx);
                 ctx.save();
                 ctx.translate(0, this._yOff ?? 1);
+                
+                // Constrain all internal drawing to the node's widget bounding box
+                ctx.beginPath();
+                ctx.rect(0, 0, width, H);
+                ctx.clip();
+                
                 this.paint(ctx, nd, width, H);
                 ctx.restore();
             },
@@ -1276,7 +1282,15 @@ ctx.fillRect(TOOL_X - 4, 0, WIDTH - (TOOL_X - 4), RULER_H - 16);
                     if (y >= 4) this._yOff = y;
                     else if (y === 1) this._yOff = 1;
                 }
+                ctx.save();
+                ctx.translate(0, this._yOff ?? 1);
+                
+                ctx.beginPath();
+                ctx.rect(0, 0, width, SB_H);
+                ctx.clip();
+                
                 this.paint(ctx, nd, WIDTH, SB_H);
+                ctx.restore();
             },
             redraw(nd) {
                 for (const ctx of this._ctxs) {
