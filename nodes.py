@@ -1507,6 +1507,7 @@ NODE_CLASS_MAPPINGS = {
     "MiniMaxH3OptionalStartFrame": MiniMaxH3OptionalStartFrame,
     "MiniMaxH3AudioAnalyze": MiniMaxH3AudioAnalyze,
     "MiniMaxH3AudioReactiveDenoise": MiniMaxH3AudioReactiveDenoise,
+    "CosmicCrafterDirector": CosmicCrafterDirector,
     "MiniMaxH3AudioCurveRemap": MiniMaxH3AudioCurveRemap,
     "MiniMaxH3Timeline": MiniMaxH3Timeline,
     "MiniMaxH3CustomAudio": MiniMaxH3CustomAudio,
@@ -1519,6 +1520,7 @@ NODE_CLASS_MAPPINGS = {
     "CosmicCrafterStreamLiveMusicVideoToVHS": MiniMaxH3StreamLiveMusicVideoToVHS,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "CosmicCrafterDirector": "CosmicCrafter Director",
     "MiniMaxH3MotionContext": "H3 Motion Context",
     "MiniMaxH3MotionContextTrim": "H3 Motion Context Trim",
     "MiniMaxH3MotionContextSaveLatent": "H3 Motion Context Save Latent",
@@ -1553,3 +1555,246 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicCrafterSongMaskedAVContext": "CosmicCrafter Song Audio + Masked Video Context",
     "CosmicCrafterStreamLiveMusicVideoToVHS": "CosmicCrafter Stream Final Music Video to VHS",
 }
+
+
+
+class CosmicCrafterDirector:
+    """CosmicCrafter NLE Director Timeline for H3. Mirrors LTX WYSIWYG capabilities."""
+    
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning stream"}),
+                "video vae": ("VAE", {"tooltip": "MiniMax H3 Video VAE"}),
+                "audio vae": ("VAE", {"tooltip": "MiniMax H3 Audio VAE"}),
+                "latent": ("LATENT", {"tooltip": "Target H3 AV latent"}),
+                "timeline_data": ("STRING", {"default": '{"segments":[], "audioSegments":[], "motionSegments":[]}', "multiline": False}),
+                "local_prompts": ("STRING", {"default": "", "multiline": False}),
+                "segment_lengths": ("STRING", {"default": "", "multiline": False}),
+                "guide_strength": ("STRING", {"default": "", "multiline": False}),
+                "audio_data": ("STRING", {"default": "", "multiline": False}),
+                "use_custom_audio": ("BOOLEAN", {"default": False}),
+                "use_custom_motion": ("BOOLEAN", {"default": False}),
+                "inpaint_audio": ("BOOLEAN", {"default": False}),
+                "override_audio": ("BOOLEAN", {"default": False}),
+                "epsilon": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
+                "display_mode": (["frames", "seconds"], {"default": "frames"}),
+                "custom_width": ("INT", {"default": 0, "min": 0, "max": 8192}),
+                "custom_height": ("INT", {"default": 0, "min": 0, "max": 8192}),
+                "resize_method": (["stretch to fit", "maintain aspect ratio"], {"default": "stretch to fit"}),
+                "divisible_by": ("INT", {"default": 16, "min": 1, "max": 256}),
+                "img_compression": ("INT", {"default": 0, "min": 0, "max": 100}),
+                "start_frame": ("INT", {"default": 0}),
+                "end_frame": ("INT", {"default": 120}),
+                "duration_frames": ("INT", {"default": 120}),
+            },
+            "optional": {
+                "global_prompt": ("STRING", {"multiline": True, "default": ""}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("conditioning",)
+    FUNCTION = "apply"
+    CATEGORY = "conditioning/minimax"
+
+    def apply(self, conditioning, latent, timeline_data, **kwargs):
+        vae = kwargs.get("video vae")
+        audio_vae = kwargs.get("audio vae")
+        fps = int(kwargs.get("frame_rate") or 24)
+        _ensure_h3_runtime_patches()
+
+        import json
+        import folder_paths
+        from PIL import Image
+        import io as _io
+        import os
+        import torch
+        import numpy as np
+        import base64
+        import node_helpers
+        import torchaudio
+
+        try:
+            state = json.loads(timeline_data or "{}")
+        except Exception:
+            state = {}
+
+        segments = state.get("segments") or []
+        audio_segments = state.get("audioSegments") or []
+        motion_segments = state.get("motionSegments") or []
+        
+        target = _video_from_latent(latent)
+        width, height, frame_count = _target_metrics(target)
+
+        def _resize(img, w, h, crop="disabled"):
+            import torch.nn.functional as F
+            img = img.permute(0, 3, 1, 2)
+            img = F.interpolate(img, size=(h, w), mode="bilinear", align_corners=False)
+            return img.permute(0, 2, 3, 1)
+
+        def _load_image_tensor(seg):
+            if seg.get("imageFile"):
+                file_path = os.path.join(folder_paths.get_input_directory(), seg["imageFile"])
+                if os.path.exists(file_path):
+                    img = Image.open(file_path).convert("RGB")
+                    img = np.array(img).astype(np.float32) / 255.0
+                    return torch.from_numpy(img)[None,]
+            b64_str = seg.get("imageB64", "")
+            if b64_str and b64_str.startswith("data:image"):
+                idx_b64 = b64_str.find(",")
+                if idx_b64 != -1:
+                    img_bytes = base64.b64decode(b64_str[idx_b64+1:])
+                    img = Image.open(_io.BytesIO(img_bytes)).convert("RGB")
+                    img = np.array(img).astype(np.float32) / 255.0
+                    return torch.from_numpy(img)[None,]
+            return None
+
+        keyframes = []
+        for idx_seg, seg in enumerate(segments):
+            start = int(seg.get("start") or 0)
+            img_tensor = _load_image_tensor(seg)
+            if img_tensor is not None and vae is not None:
+                enc = vae.encode(_resize(img_tensor, width, height, "disabled"))
+                keyframes.append({
+                    "resolved_frame_index": start,
+                    "latent": enc[:, :, :1],
+                })
+
+        refs = []
+        for seg in audio_segments:
+            file_path = os.path.join(folder_paths.get_input_directory(), seg.get("audioFile", ""))
+            if os.path.exists(file_path) and audio_vae is not None:
+                start = int(seg.get("start") or 0)
+                length = int(seg.get("length") or 22)
+                try:
+                    aud, sr = torchaudio.load(file_path)
+                    aud_dict = {"waveform": aud.unsqueeze(0), "sample_rate": sr}
+                    z, rt = _encode_audio_window(audio_vae, aud_dict, length / float(fps))
+                    refs.append({
+                        "kind": "audio",
+                        "ref_audio_t": rt,
+                        "audio_latent": z,
+                        "resolved_frame_index": start + length,
+                    })
+                except Exception as e:
+                    print(f"[CosmicCrafterDirector] Audio load error: {e}")
+        
+        out = conditioning
+        if keyframes:
+            out = node_helpers.conditioning_set_values(out, {"minimax_keyframes": keyframes})
+        if refs:
+            out = node_helpers.conditioning_set_values(out, {"minimax_refs": refs}, append=True)
+        return (out,)
+
+
+
+from server import PromptServer
+from aiohttp import web
+import os
+import folder_paths
+
+@PromptServer.instance.routes.get("/cosmic_crafter_director_check_file")
+async def cosmic_crafter_director_check_file(request):
+    filename = request.query.get("filename", "")
+    file_size = request.query.get("size", "")
+    if not filename:
+        return web.json_response({"exists": False})
+
+    upload_dir = folder_paths.get_input_directory()
+    temp_dir = os.path.join(upload_dir, "cosmiccrafter")
+    
+    possible_paths = [
+        os.path.join(temp_dir, filename),
+        os.path.join(upload_dir, filename)
+    ]
+    
+    found_path = None
+    for p in possible_paths:
+        if os.path.exists(p) and os.path.isfile(p):
+            found_path = p
+            break
+            
+    if not found_path:
+        return web.json_response({"exists": False})
+        
+    try:
+        actual_size = os.path.getsize(found_path)
+        if file_size and str(actual_size) == str(file_size):
+            return web.json_response({"exists": True, "path": found_path})
+        return web.json_response({"exists": True, "size_mismatch": True, "actual": actual_size, "expected": file_size})
+    except Exception as e:
+        return web.json_response({"exists": False, "error": str(e)})
+
+@PromptServer.instance.routes.post("/cosmic_crafter_director_upload_chunk")
+async def cosmic_crafter_director_upload_chunk(request):
+    post = await request.post()
+    chunk = post.get("chunk")
+    filename = post.get("filename")
+    index = int(post.get("index", 0))
+    total = int(post.get("total", 1))
+    
+    if not chunk or not filename:
+        return web.json_response({"error": "Missing chunk or filename"}, status=400)
+        
+    upload_dir = os.path.join(folder_paths.get_input_directory(), "cosmiccrafter")
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, filename)
+    
+    mode = "wb" if index == 0 else "ab"
+    with open(file_path, mode) as f:
+        f.write(chunk.file.read())
+        
+    if index == total - 1:
+        return web.json_response({"status": "complete", "filename": f"cosmiccrafter/{filename}"})
+    return web.json_response({"status": "ok"})
+
+@PromptServer.instance.routes.get("/cosmic_crafter_director_get_audio")
+async def cosmic_crafter_director_get_audio(request):
+    filename = request.query.get("filename")
+    if not filename:
+        return web.json_response({"error": "Missing filename"}, status=400)
+
+    upload_dir = folder_paths.get_input_directory()
+    file_path = os.path.join(upload_dir, filename)
+    if not os.path.exists(file_path):
+        return web.json_response({"error": "File not found"}, status=404)
+
+    _, ext = os.path.splitext(file_path)
+    is_audio = ext.lower() in [".wav", ".mp3", ".ogg", ".flac", ".m4a"]
+    
+    if is_audio:
+        peaks = None
+        try:
+            import torchaudio
+            import torch
+            import numpy as np
+            aud, sr = torchaudio.load(file_path)
+            # resample to low sample rate for peaks if possible
+            aud = aud.mean(dim=0) # mono
+            num_peaks = 200
+            step = max(1, len(aud) // num_peaks)
+            peaks = []
+            for i in range(0, len(aud), step):
+                chunk = aud[i:i+step]
+                peaks.append(float(chunk.abs().max().item()))
+        except Exception as e:
+            print(f"[CosmicCrafterDirector] Audio peak extraction error: {e}")
+            
+        return web.json_response({"peaks": peaks})
+
+    return web.json_response({"error": "Unsupported file format"}, status=400)
+
+@PromptServer.instance.routes.get("/cosmic_crafter_director_open_folder")
+async def cosmic_crafter_director_open_folder(request):
+    upload_dir = os.path.join(folder_paths.get_input_directory(), "cosmiccrafter")
+    os.makedirs(upload_dir, exist_ok=True)
+    try:
+        if hasattr(os, "startfile"):
+            os.startfile(upload_dir)
+        return web.json_response({"status": "ok"})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
