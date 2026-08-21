@@ -12,8 +12,10 @@ def test_example_workflow_catalog_is_tight_and_current():
         "OLD - Hybrid Extension.json",
         "OLD - Motion Context - Advanced.json",
         "OLD - Motion Context - Simple.json",
+        "UTILITY - Audio Reactive.json",
         "UTILITY - AV Bridge.json",
         "UTILITY - Custom Keyframes.json",
+        "UTILITY - H3 Timeline Canvas.json",
     ])
     assert not any("Live Latent" in name for name in names)
     assert not any("Latent Masking" in name for name in names)

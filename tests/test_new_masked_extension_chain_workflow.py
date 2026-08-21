@@ -159,7 +159,7 @@ def test_workflow_links_are_internally_consistent():
 
 
 def test_controller_frontend_uses_real_bypass_and_metadata_groups():
-    src=(ROOT/'js'/'h3_av_extension_controller.js').read_text()
+    src = (ROOT / "js" / "h3_av_extension_controller.js").read_text(encoding="utf-8")
     assert 'MODE_BYPASS = 4' in src
     assert 'group.recomputeInsideNodes' in src
     assert 'group?.flags?.h3_control' in src

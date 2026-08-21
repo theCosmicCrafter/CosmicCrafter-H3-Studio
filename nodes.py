@@ -58,6 +58,11 @@ from .h3_streaming_vhs import (
 )
 from .h3_auto_crop32 import MiniMaxH3CropTo32, MiniMaxH3StartCanvasSelector
 from .h3_timing import crossfade_plan
+from .h3_audio_reactive import (
+    MiniMaxH3AudioAnalyze,
+    MiniMaxH3AudioReactiveDenoise,
+    MiniMaxH3AudioCurveRemap,
+)
 
 try:
     import torchaudio
@@ -1181,6 +1186,287 @@ class MiniMaxH3OptionalReferenceImage:
         return (image if bool(enabled) else None,)
 
 
+
+
+# ===========================================================================
+# CosmicCrafter & MiniMax H3 Visual Timeline Canvas & Custom Media Nodes
+# ===========================================================================
+
+FRAME_RESCALE = 5.0 / 3.0
+
+
+class _DynamicInputs(dict):
+    """Dynamic socket connector for interactive timeline and custom media UI."""
+    def __init__(self, *patterns, **kwargs):
+        super().__init__(**kwargs)
+        self.patterns = patterns
+
+    def __contains__(self, key):
+        if super().__contains__(key):
+            return True
+        for pat in self.patterns:
+            prefix, spec = pat if isinstance(pat, tuple) else (pat, None)
+            if key.startswith(prefix):
+                return True
+        return False
+
+    def __getitem__(self, key):
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+            for pat in self.patterns:
+                prefix, spec = pat if isinstance(pat, tuple) else (pat, None)
+                if key.startswith(prefix):
+                    return spec
+            raise
+
+
+def _ensure_h3_runtime_patches():
+    ensure_motion_context_compat()
+
+
+def _parse_slots(state_str, name, prefix, max_slots):
+    try:
+        data = json.loads(state_str or "{}")
+        count = max(1, min(max_slots, int(data.get("count", 1))))
+        positions = list(data.get("positions", [1]))
+        strengths = list(data.get("strengths", [1.0]))
+    except Exception:
+        count, positions, strengths = 1, [1], [1.0]
+
+    while len(positions) < count:
+        positions.append(positions[-1] + 17 if positions else 1)
+    while len(strengths) < count:
+        strengths.append(1.0)
+    return positions[:count], count, strengths[:count]
+
+
+def _encode_audio_window(audio_vae, audio, duration_sec, tail=False):
+    wav = audio["waveform"]
+    sr = int(audio["sample_rate"])
+    needed_samples = int(round(duration_sec * sr))
+    if tail:
+        chunk = wav[..., max(0, wav.shape[-1] - needed_samples):]
+    else:
+        chunk = wav[..., :min(wav.shape[-1], needed_samples)]
+    enc = audio_vae.encode(chunk)
+    return enc, int(enc.shape[-1])
+
+
+class MiniMaxH3CustomAudio:
+    """Pin audio clips at arbitrary positions of the H3 output timeline."""
+    MAX_AUDIOS = 16
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning"}),
+                "audio_vae": ("VAE", {"tooltip": "MiniMax H3 Audio VAE"}),
+                "latent": ("LATENT", {"tooltip": "Target MiniMax H3 AV Latent"}),
+                "audio_state": ("STRING", {"default": '{"count":1,"positions":[1],"strengths":[1]}', "multiline": False}),
+                "indexing": (["1-based", "0-based"], {"default": "1-based"}),
+                "align": (["end", "start"], {"default": "end"}),
+            },
+            "optional": _DynamicInputs(("audio_", ("AUDIO",))),
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("conditioning",)
+    FUNCTION = "apply"
+    CATEGORY = "conditioning/minimax"
+
+    def apply(self, conditioning, audio_vae, latent, audio_state, indexing="1-based", align="end", **kwargs):
+        _ensure_h3_runtime_patches()
+        positions, count, strengths = _parse_slots(audio_state, "Custom Audio", "audio", self.MAX_AUDIOS)
+        frame_count = _target_metrics(_video_from_latent(latent))[2]
+
+        anchors = []
+        for slot in range(1, count + 1):
+            raw_pos = int(positions[slot - 1])
+            zero_based = raw_pos - 1 if indexing == "1-based" else raw_pos
+            zero_based = max(0, min(frame_count - 1, zero_based))
+            window_frames = zero_based + 1 if align == "end" else frame_count - zero_based
+
+            audio = kwargs.get(f"audio_{slot}")
+            if audio is None:
+                continue
+            z, rt = _encode_audio_window(audio_vae, audio, window_frames / float(FPS), tail=(align == "end"))
+            end_frame = float(zero_based + 1) if align == "end" else float(zero_based) + rt / FRAME_RESCALE
+            anchors.append((end_frame, z, rt, strengths[slot - 1]))
+
+        refs = [{
+            "kind": "audio",
+            "ref_audio_t": rt,
+            "audio_latent": z,
+            "resolved_frame_index": int(end_frame),
+        } for end_frame, z, rt, strength in anchors]
+
+        return (node_helpers.conditioning_set_values(conditioning, {"minimax_refs": refs}, append=True),)
+
+
+class MiniMaxH3CustomVideo:
+    """Pin full video clips onto the H3 output timeline."""
+    MAX_VIDEOS = 8
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning"}),
+                "vae": ("VAE", {"tooltip": "MiniMax H3 Video VAE"}),
+                "latent": ("LATENT", {"tooltip": "Target MiniMax H3 AV Latent"}),
+                "video_state": ("STRING", {"default": '{"count":1,"positions":[1],"strengths":[1]}', "multiline": False}),
+                "indexing": (["1-based", "0-based"], {"default": "1-based"}),
+                "crop": (["disabled", "center"], {"default": "disabled"}),
+            },
+            "optional": _DynamicInputs(("video_", ("IMAGE",)), ("video_audio_", ("AUDIO",)), audio_vae=("VAE", {})),
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("conditioning",)
+    FUNCTION = "apply"
+    CATEGORY = "conditioning/minimax"
+
+    def apply(self, conditioning, vae, latent, video_state, indexing="1-based", crop="disabled", audio_vae=None, **kwargs):
+        _ensure_h3_runtime_patches()
+        positions, count, strengths = _parse_slots(video_state, "Custom Video", "video", self.MAX_VIDEOS)
+        target = _video_from_latent(latent)
+        width, height, frame_count = _target_metrics(target)
+
+        keyframes, audio_refs = [], []
+        for slot in range(1, count + 1):
+            raw_pos = int(positions[slot - 1])
+            zero_based = raw_pos - 1 if indexing == "1-based" else raw_pos
+            zero_based = max(0, min(frame_count - 1, zero_based))
+            video = kwargs.get(f"video_{slot}")
+            if video is None:
+                continue
+            n = int(video.shape[0])
+            runs = _video_runs(n)
+            run_acc = 0
+            for run in runs:
+                enc = vae.encode(_resize(video[run_acc:run_acc + run], width, height, crop))
+                steps = int(enc.shape[2])
+                offsets = _step_offsets(steps)
+                for k, off in enumerate(offsets):
+                    keyframes.append({
+                        "resolved_frame_index": int(zero_based + run_acc + off),
+                        "latent": enc[:, :, k:k + 1],
+                    })
+                run_acc += run
+
+            audio = kwargs.get(f"video_audio_{slot}")
+            if audio is not None and audio_vae is not None:
+                audio_latent, ref_audio_t = _encode_audio_window(audio_vae, audio, n / float(FPS), tail=False)
+                audio_refs.append({
+                    "kind": "audio",
+                    "ref_audio_t": ref_audio_t,
+                    "audio_latent": audio_latent,
+                    "resolved_frame_index": int(zero_based + n),
+                })
+
+        out = node_helpers.conditioning_set_values(conditioning, {"minimax_keyframes": keyframes})
+        if audio_refs:
+            out = node_helpers.conditioning_set_values(out, {"minimax_refs": audio_refs}, append=True)
+        return (out,)
+
+
+class MiniMaxH3Timeline:
+    """CosmicCrafter / MiniMax H3 Visual NLE Timeline Editor Studio Node."""
+    MAX_CLIPS = 32
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning stream"}),
+                "video vae": ("VAE", {"tooltip": "MiniMax H3 Video VAE"}),
+                "audio vae": ("VAE", {"tooltip": "MiniMax H3 Audio VAE"}),
+                "latent": ("LATENT", {"tooltip": "Target H3 AV latent"}),
+                "timeline_state": ("STRING", {"default": '{"clips":[]}', "multiline": False}),
+                "crop": (["disabled", "center"], {"default": "disabled"}),
+            },
+            "optional": _DynamicInputs(
+                ("video_", ("IMAGE",)),
+                ("video_audio_", ("AUDIO",)),
+                ("image_", ("IMAGE",)),
+                ("audio_", ("AUDIO",)),
+                fps=("INT", {"default": 24, "min": 1, "max": 240}),
+                total_frames=("INT", {"default": 240, "min": 1, "max": 100000}),
+            ),
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("conditioning",)
+    FUNCTION = "apply"
+    CATEGORY = "conditioning/minimax"
+    DESCRIPTION = "CosmicCrafter Visual Timeline Studio: drop images, video clips, and audio stems at exact frame positions on an NLE timeline canvas."
+
+    def apply(self, conditioning, latent, timeline_state, crop="disabled", **kwargs):
+        vae = kwargs.get("video vae")
+        audio_vae = kwargs.get("audio vae")
+        fps = int(kwargs.get("fps") or FPS)
+        _ensure_h3_runtime_patches()
+
+        try:
+            state = json.loads(timeline_state or "{}")
+        except Exception:
+            state = {}
+
+        clips = state.get("clips") or []
+        target = _video_from_latent(latent)
+        width, height, frame_count = _target_metrics(target)
+
+        keyframes, refs = [], []
+        for idx, clip in enumerate(clips, 1):
+            slot = int(clip.get("id") or idx)
+            kind = clip.get("kind", "image")
+            start = max(1, int(clip.get("start") or 1))
+            zero = start - 1
+
+            if kind == "image":
+                img = kwargs.get(f"image_{slot}")
+                if img is not None:
+                    enc = vae.encode(_resize(img, width, height, crop))
+                    keyframes.append({
+                        "resolved_frame_index": int(zero),
+                        "latent": enc[:, :, :1],
+                    })
+            elif kind == "video":
+                vid = kwargs.get(f"video_{slot}")
+                if vid is not None:
+                    n = int(vid.shape[0])
+                    runs = _video_runs(n)
+                    run_acc = 0
+                    for run in runs:
+                        enc = vae.encode(_resize(vid[run_acc:run_acc + run], width, height, crop))
+                        steps = int(enc.shape[2])
+                        for k, off in enumerate(_step_offsets(steps)):
+                            keyframes.append({
+                                "resolved_frame_index": int(zero + run_acc + off),
+                                "latent": enc[:, :, k:k + 1],
+                            })
+                        run_acc += run
+            elif kind == "audio":
+                aud = kwargs.get(f"audio_{slot}")
+                if aud is not None and audio_vae is not None:
+                    a_len = int(clip.get("len") or 22)
+                    z, rt = _encode_audio_window(audio_vae, aud, a_len / float(fps))
+                    refs.append({
+                        "kind": "audio",
+                        "ref_audio_t": rt,
+                        "audio_latent": z,
+                        "resolved_frame_index": int(zero + a_len),
+                    })
+
+        out = node_helpers.conditioning_set_values(conditioning, {"minimax_keyframes": keyframes})
+        if refs:
+            out = node_helpers.conditioning_set_values(out, {"minimax_refs": refs}, append=True)
+        return (out,)
+
+
+
 NODE_CLASS_MAPPINGS = {
     "MiniMaxH3MotionContext": MiniMaxH3MotionContext,
     "MiniMaxH3MotionContextTrim": MiniMaxH3MotionContextTrim,
@@ -1203,6 +1489,18 @@ NODE_CLASS_MAPPINGS = {
     "MiniMaxH3MusicVideoController": MiniMaxH3MusicVideoController,
     "MiniMaxH3ExtensionStartMode": MiniMaxH3ExtensionStartMode,
     "MiniMaxH3OptionalStartFrame": MiniMaxH3OptionalStartFrame,
+    "MiniMaxH3AudioAnalyze": MiniMaxH3AudioAnalyze,
+    "MiniMaxH3AudioReactiveDenoise": MiniMaxH3AudioReactiveDenoise,
+    "MiniMaxH3AudioCurveRemap": MiniMaxH3AudioCurveRemap,
+    "MiniMaxH3Timeline": MiniMaxH3Timeline,
+    "MiniMaxH3CustomAudio": MiniMaxH3CustomAudio,
+    "MiniMaxH3CustomVideo": MiniMaxH3CustomVideo,
+    "CosmicCrafterTimeline": MiniMaxH3Timeline,
+    "CosmicCrafterAudioAnalyze": MiniMaxH3AudioAnalyze,
+    "CosmicCrafterAudioReactiveDenoise": MiniMaxH3AudioReactiveDenoise,
+    "CosmicCrafterAudioCurveRemap": MiniMaxH3AudioCurveRemap,
+    "CosmicCrafterSongMaskedAVContext": MiniMaxH3SongMaskedAVContext,
+    "CosmicCrafterStreamLiveMusicVideoToVHS": MiniMaxH3StreamLiveMusicVideoToVHS,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "MiniMaxH3MotionContext": "H3 Motion Context",
@@ -1226,4 +1524,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MiniMaxH3MusicVideoController": "H3 Music Video Controller",
     "MiniMaxH3ExtensionStartMode": "H3 Extension Start Mode",
     "MiniMaxH3OptionalStartFrame": "H3 Optional Starter First Frame",
+    "MiniMaxH3AudioAnalyze": "H3 Audio Analyze",
+    "MiniMaxH3AudioReactiveDenoise": "H3 Audio-Reactive Denoise",
+    "MiniMaxH3AudioCurveRemap": "H3 Audio Curve Remap",
+    "MiniMaxH3Timeline": "H3 Timeline Editor",
+    "MiniMaxH3CustomAudio": "H3 Custom Audio",
+    "MiniMaxH3CustomVideo": "H3 Custom Video",
+    "CosmicCrafterTimeline": "CosmicCrafter Timeline Studio",
+    "CosmicCrafterAudioAnalyze": "CosmicCrafter Audio Analyze",
+    "CosmicCrafterAudioReactiveDenoise": "CosmicCrafter Audio-Reactive Denoise",
+    "CosmicCrafterAudioCurveRemap": "CosmicCrafter Audio Curve Remap",
+    "CosmicCrafterSongMaskedAVContext": "CosmicCrafter Song Audio + Masked Video Context",
+    "CosmicCrafterStreamLiveMusicVideoToVHS": "CosmicCrafter Stream Final Music Video to VHS",
 }

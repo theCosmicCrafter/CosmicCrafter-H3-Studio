@@ -64,68 +64,44 @@ This matters for:
 
 ---
 
-## 3. Video and audio clocks
+### Discretization and clock alignment constraints
 
-H3 video output is treated as **24 fps**.
+MiniMax H3 establishes distinct operational frequencies across domains:
 
-H3 audio latents run at **40 latent steps per second**.
+$$\text{Video Frame Rate } (f_v) = 24 \text{ Hz}$$
+$$\text{Audio Latent Rate } (f_a) = 40 \text{ Hz}$$
 
-Therefore:
+The fundamental conversion ratio between temporal domains is:
 
-```text
-40 / 24 = 5 / 3
-```
+$$\frac{f_a}{f_v} = \frac{40}{24} = \frac{5}{3} \approx 1.6667 \text{ audio latent steps per video frame}$$
 
-One video frame is not one audio latent step.
+Because individual video frames do not correspond to integer audio latent tokens, naive temporal slicing results in fractional token truncation and phase artifacts. Furthermore, the H3 video Variational Autoencoder (VAE) employs a non-uniform temporal token grouping pattern defined by the sequence $(1, 4, 4, 4, 4)$, yielding valid native video frame sequences governed by an arithmetic progression:
 
-### Video-VAE temporal pattern
+$$N_f = 17k + 5 \quad \text{for } k \in \mathbb{N}_0 \quad (N_f \in \{5, 22, 39, 56, 73, 90, 107, 124, 141, 158, 175, 192, \dots\})$$
 
-The H3 video latent uses the repeating pixel-frame coverage pattern:
+### Harmonic AV context boundaries
 
-```text
-1, 4, 4, 4, 4
-```
+To prevent fractional phase drift and temporal aliasing across multi-clip continuations, context boundaries must simultaneously satisfy the video VAE sequence ($N_f = 17k + 5$) and evaluate to an exact integer on the $40\text{ Hz}$ audio grid ($\frac{5 N_f}{3} \in \mathbb{Z}$).
 
-The repository exposes this internally as:
+Setting $5(17k + 5) \equiv 0 \pmod 3$ simplifies to:
 
-```python
-FRAME_PER_TOKEN = (1, 4, 4, 4, 4)
-```
+$$85k + 25 \equiv 0 \pmod 3 \implies k + 1 \equiv 0 \pmod 3 \implies k \equiv 2 \pmod 3$$
 
-A complete native temporal video run therefore follows the pixel-frame sequence:
+Substituting $k = 3m + 2$ for $m \in \mathbb{N}_0$ into the frame progression establishes the exact harmonic synchronization series:
 
-```text
-5, 22, 39, 56, 73, 90, 107, 124, 141, 158, 175, 192, ...
-```
+$$N_f = 17(3m + 2) + 5 = 51m + 39 \quad \text{for } m \in \mathbb{N}_0$$
 
-which is:
+| Context Index ($m$) | Frame Count ($N_f$) | Video Duration ($s$) | Audio Latent Steps ($T_a$) | PCM Samples ($44.1\text{ kHz}$) | PCM Samples ($48.0\text{ kHz}$) |
+|---|---|---|---|---|---|
+| **0 (Default Seam)** | **39** | **1.6250 s** | **65** | **71,662.5** | **78,000** |
+| 1 | 90 | 3.7500 s | 150 | 165,375.0 | 180,000 |
+| 2 | 141 | 5.8750 s | 235 | 259,087.5 | 282,000 |
+| 3 | 192 | 8.0000 s | 320 | 352,800.0 | 384,000 |
+| 4 | 243 | 10.1250 s | 405 | 446,512.5 | 486,000 |
+| 5 | 294 | 12.2500 s | 490 | 540,225.0 | 588,000 |
+| 6 | 345 | 14.3750 s | 575 | 633,937.5 | 690,000 |
 
-```text
-17k + 5
-```
-
-for integer `k >= 0`.
-
-### Exact AV boundaries
-
-Some native video runs also land exactly on the 40 Hz audio grid.
-
-Examples:
-
-```text
-39 frames  = 1.625 s = 65 audio steps
-90 frames  = 3.750 s = 150 audio steps
-141 frames = 5.875 s = 235 audio steps
-192 frames = 8.000 s = 320 audio steps
-```
-
-This is why **39 frames** is the default continuation context throughout the current workflows: it is a valid H3 video-VAE run and an exact video/audio timing boundary.
-
----
-
-For Update-6 masked AV continuation, a protected context must be both a valid H3 video-VAE run and an exact 40 Hz audio-latent boundary. The shared sequence is `39, 90, 141, 192, 243, ...` frames. Requested context values are snapped downward to the largest shared boundary that fits the available source and target. This avoids fractional audio endpoints such as 73 video frames (`121.666...` audio ticks).
-
-Final decoded-audio stitching uses **absolute frame-to-sample boundaries** rather than repeatedly rounding a relative context duration. At 44.1 kHz, for example, two 39-frame seams can legitimately require 71662 and 71663 samples at different absolute timeline positions.
+At non-integer PCM sample boundaries (such as $44.1\text{ kHz}$ across a 39-frame window yielding 71,662.5 samples), exact timeline tracking requires alternating absolute sample counts (toggling between 71,662 and 71,663 samples) to avoid cumulative phase drift over extended multi-clip assemblies.
 
 ## 4. Why some target clips have a rounded audio tail
 
@@ -763,3 +739,111 @@ The pytest entry point delegates to the isolated mock runner because several tes
 
 - [MODIFICATIONS.md](MODIFICATIONS.md) — release history.
 - [example_workflows/README.md](example_workflows/README.md) — practical usage notes for the included workflows.
+
+---
+
+## 25. Audio-reactive analysis and feature tracking
+
+### Relationship to master-song audio masking
+
+`H3 Song Audio + Masked Video Context` (section 9) guarantees that the delivered audio is the original master song by injecting pre-encoded audio latents and enforcing $M_{\text{audio}} = 0$. The audio-reactive nodes solve the complementary problem: making the **visual generation** respond dynamically to what is happening in the music (beats, energy envelopes, spectral brightness, transients, and isolated frequency bands).
+
+MiniMax H3 generates an entire clip at once in 3D spatio-temporal latent space (not frame-by-frame autoregressively). The reactive signals are therefore applied across two distinct operational tiers:
+
+1. **Clip-level modulation**: aggregate a per-frame curve into one scalar per clip (peak energy, mean brightness, beat density) via `MiniMaxH3AudioReactiveDenoise` to drive sampler denoise strength (e.g., subtle 0.70 during verses, energetic 1.00 at drops), CFG scale, or prompt weights for that clip's generation.
+2. **Timeline and multi-clip sequencing**: use beat frame indices to establish exact harmonic cut points ($N_f = 51m + 39$), or route energy/spectral curves to `MiniMaxH3CustomKeyframes` and reference image selectors to switch visual styles on predetermined musical cues.
+
+### Core node suite
+
+| Display name | Class | Purpose |
+|---|---|---|
+| H3 Audio Analyze | `MiniMaxH3AudioAnalyze` | Extract per-frame RMS energy, beat pulse, spectral brightness, onset strength, and bass/mids/highs frequency bands from a master song interval |
+| H3 Audio-Reactive Denoise | `MiniMaxH3AudioReactiveDenoise` | Reduce any per-frame audio curve to a single denoise strength scalar (`peak`, `mean`, `median`, with optional inversion) |
+| H3 Audio Curve Remap | `MiniMaxH3AudioCurveRemap` | Smooth, power-law shape (`gamma`), noise gate (`threshold`), and range-remap any per-frame audio curve |
+
+### Analysis signals (24 fps grid)
+
+All features operate on the 24 fps H3 video grid and produce one normalized float per frame ($[0.0, 1.0]$):
+
+| Feature | Signal | Internal Mechanism | Typical Use |
+|---|---|---|---|
+| RMS energy (`energy`) | Per-frame loudness envelope | Moving RMS over sample window | Denoise modulation: calm = subtle, loud = dramatic |
+| Beat pulse (`beats`) | Beat impulse + exponential decay | Adaptive peak / librosa beat track | Cut-on-beat editing, rhythmic visual pulse |
+| Spectral centroid (`brightness`) | Physical spectral brightness | First spectral moment / Nyquist ($f_{\text{Nyq}} = \frac{\text{sr}}{2}$) | Color/mood shifting: dark tones vs bright tones |
+| Onset strength (`onsets`) | Transient detection | Spectral flux (half-wave rectified diff) | Cymbal hits, drum transients, vocal entrances |
+| Bass (`bass`) | Low frequency energy (20–250 Hz) | Bandpass FFT bin power | Kick drum, bassline visual scale |
+| Mids (`mids`) | Mid frequency energy (250–4000 Hz) | Bandpass FFT bin power | Vocal presence, melody-driven motion |
+| Highs (`highs`) | High frequency energy (4000 Hz+) | Bandpass FFT bin power | Hi-hats, shimmer, particle effects |
+
+### Cross-ecosystem node compatibility
+
+The signals emitted by `H3 Audio Analyze` output standard ComfyUI `FLOAT` lists, making them directly interoperable with external audio nodes:
+
+- **`ComfyUI-AudioScheduler`** (`BatchAmplitudeSchedule`, `NormalizedAmplitudeDrivenString`): Drive dynamic prompt switching on energy thresholds.
+- **`ComfyUI-AudioReactive`** (`OpPercussive`, `OpHarmonic`, `SignalToCurve`): Separate harmonic and percussive layers for dual-stream conditioning.
+- **`ComfyUI_AudioTools`** (`Stem Separator AI`): Isolate dry vocals using Demucs before routing to `MiniMaxH3SongMaskedAVContext`, optimizing cross-modal lip-sync attention.
+- **`ComfyUI_Fill-Nodes`** (`FL_Audio_BPM_Analyzer`): Global tempo detection and grid alignment.
+
+---
+
+## 26. Conditioning paradigms and cross-modal binding
+
+### Cross-modal prompt directives (Qwen3-VL-32B)
+
+The underlying text encoder possesses joint acoustic-visual semantic alignments. Synchronization markers such as `"as"`, `"when"`, and `"then"` bind sharp acoustic transients directly to visual actions within the diffusion attention layers:
+- Declarative environmental clauses establish ambient acoustic beds.
+- Explicit temporal sequencing instructs the model to align visual state transitions with sonic impacts.
+
+### Multimodal conditioning modes
+
+1. **Reference-to-Video (Ref2VA)**: Accepts up to 9 reference images, 3 reference videos, and 3 reference audio clips. Reference audio guides vocal timbre, acoustic ambiance, and musical style without locking temporal positions.
+2. **First/Last Frame to Video (FL2VA)**: Dictates structural trajectories between explicit image keyframes, allowing visual events to match broad musical transitions.
+3. **Custom Keyframes**: Injects static image anchors at arbitrary internal timeline indices ($t_k \in [0, N_f]$), forcing the visual diffusion trajectory to intersect specific compositions on predetermined musical beats.
+
+### Per-token latent masking & acoustic feathering
+
+For exact lip synchronization and beat-locked choreography:
+- **Audio Stream**: Locked completely ($M_{\text{audio}} = 0$) with master audio encoded directly into target latents.
+- **Video Stream**: Context tail from previous clip is preserved ($M_{\text{video}} = 0$ for $t \le T_{\text{context}}$), while the remainder is generated ($M_{\text{video}} = 1$).
+- **Acoustic Boundary Smoothing**: To prevent seam clicks across continuation segments, an 8-tick ($0.2\text{ s}$) half-cosine feather is applied to the audio transition boundary:
+
+$$\alpha(t) = \frac{1}{2} \left(1 - \cos\left(\frac{\pi t}{T_{\text{feather}}}\right)\right) \quad \text{for } t \in [0, T_{\text{feather}}]$$
+
+---
+
+## 27. Comparative analysis of diffusion video architectures
+
+| Architectural Vector | MiniMax H3 (Masked AV Pipeline) | LTX-Video 2.3 (Audio-Reactive LoRA) | CogVideoX / AnimateDiff (Signal Travel) |
+|---|---|---|---|
+| **Model Type** | Native Omni-Modal DiT (Joint Video/Audio) | Decoupled Video DiT + Audio Cross-Attention LoRA | Video Diffusion + Injected Temporal Attention Layers |
+| **Native Frame Rate** | 24 fps (Quantized to $17k+5$) | 24 / 25 fps | 8 / 16 / 24 fps |
+| **Audio Clock** | 40 Hz Latent Space | External Feature Map / FFT Conditioning | External Curve (Per-Frame Float Schedules) |
+| **Lip-Sync Precision** | Exact Sub-Frame (via Audio Latent Masking $M_a=0$) | Approximate / Stylistic Rhythmic Sync | Post-Process Dubbing / Latent Warp Required |
+| **Multi-Clip Chaining** | Direct AV Latent Tail Copying ($N_f = 51m + 39$) | Iterative Image-to-Video Seed Chaining | Context Sliding Window / Latent Blending |
+| **Acoustic Fidelity** | Master Track Passthrough with Zero Distortion | Video-only; audio multiplexed externally | Video-only; audio multiplexed externally |
+| **Peak Memory Profile** | Streamed Frame Pipe (Bounded to 1 Clip in RAM) | Bounded Frame Batches | Cumulative Latent Accumulation |
+
+---
+
+## 28. Diagnostic procedures and troubleshooting
+
+### 1. Audio-grid boundary shortfall ($T_a - 1$ token floor)
+- **Symptom**: Sampler dimension mismatch crash when encoding master audio into a target latent (e.g. 206 tokens produced instead of 207 for a 124-frame target).
+- **Cause**: Downward sample flooring inside the audio VAE.
+- **Resolution**: The feeder node reads the authoritative target latent dimension ($T_{a,\text{target}}$), computes the required PCM sample window with lookahead padding:
+  $$N_{\text{samples}} = \left\lceil T_{a,\text{target}} \times \frac{\text{SampleRate}}{40} \right\rceil + \text{Padding}$$
+  encodes the waveform, and slices the tensor to the exact target length rather than padding with zero tokens.
+
+### 2. Visual seam ghosting in multi-clip assembly
+- **Symptom**: Double-exposure artifacts across the 39-frame continuation window.
+- **Cause**: Applying fractional noise masks directly to video latents.
+- **Resolution**: Video latent masking must remain strictly binary ($M_v = 0$ for protected context, $M_v = 1$ for generative synthesis). Fractional blending is reserved exclusively for CPU-level linear pixel interpolation inside the final streaming node (`MiniMaxH3StreamLiveMusicVideoToVHS`).
+
+### 3. CUDA out-of-memory during Ref2VA execution
+- **Symptom**: VRAM exhaustion when combining multiple high-resolution reference images with video context.
+- **Resolution**: Pass all image inputs through `H3 Crop Source To /32` to conform dimensions to modulo-32 boundaries, and enable SageAttention via `Patch Sage Attention KJ` to reduce cross-attention memory overhead.
+
+### 4. Controller-owned preview invalidation
+- **Symptom**: VideoHelperSuite inline preview players display stale or black frames during iterative multi-clip generation.
+- **Resolution**: `H3 Music Video Controller` and `H3 AV Extension Controller` enforce real ComfyUI group bypass and trigger targeted frontend parameter invalidation (`updateParameters(params, true)`), refreshing the user interface reliably without causing browser-side video player crashes.
+

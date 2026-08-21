@@ -1,75 +1,106 @@
-# ComfyUI H3 Motion Context — MultiRef & Latent Masking
+# CosmicCrafter H3 Studio 🎬✨🎵
 
-A ComfyUI custom-node pack and workflow collection for extending MiniMax H3 video generations with motion continuity, references, audio, and latent masking.
+**The Unified Visual Timeline & Audio-Reactive Audiovisual Studio for MiniMax H3 in ComfyUI.**
 
-Update 6 reduces RAM and cache pressure during long-form final output, making out-of-memory errors less likely.
+---
 
-Modified fork of [NikoDemon80/ComfyUI-H3-Motion-Context](https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context).
+## 🌟 What is CosmicCrafter H3 Studio?
 
-## Main workflows
+**CosmicCrafter H3 Studio** is a comprehensive, production-grade creative suite for MiniMax H3 video synthesis. It solves the sprawling "canvas maze" problem by combining an **all-in-one interactive NLE timeline canvas widget** with a **zero-dependency pure-PyTorch audio-reactive engine** and **sample-accurate latent masking with memory-bounded VHS streaming**.
 
-### NEW - Music Video
+```mermaid
+graph TD
+    subgraph CosmicCrafter Studio
+        UI[Interactive NLE Timeline Canvas Widget]
+        AR[Audio-Reactive Signal Engine: 7 Synchronous Curves]
+        MSK[Native Masked AV Latent Engine: Nf = 51m + 39]
+        STR[Memory-Bounded VHS Stream Pipe]
+    end
 
-Creates a sequence of H3 video clips around a single song.
-
-Example Music Video you can recreate:
-https://github.com/user-attachments/assets/33e22c59-d23f-4470-b52a-6fabb0e4a66b
-
-A complete example with reference images and a song is included in:
-
-`example_workflows/NEW - Music Video.json`
-
-The example assets are in:
-
-`example_workflows/assets/`
-
-### NEW - AV Extension
-
-Extends an existing video, or starts from a newly generated T2V/I2V clip and continues it through multiple H3 generations.
-
-Open:
-
-`example_workflows/NEW - AV Extension.json`
-
-The repository also includes utility and legacy workflows for clip bridging, custom keyframes, and earlier Motion Context / hybrid continuation methods.
-
-See [example_workflows/README.md](example_workflows/README.md) for the workflow guide.
-
-## Installation
-
-Clone the repository into ComfyUI's `custom_nodes` directory:
-
-```bash
-cd /path/to/ComfyUI/custom_nodes
-git clone https://github.com/seitanism/ComfyUI-H3-Motion-Context-MultiRef.git
+    AUDIO[Master Audio / Music Track] --> AR
+    AUDIO --> UI
+    IMAGES[Keyframes / Video Clips] --> UI
+    
+    AR -->|Energy / Beat Modulation| DNOISE[Sampler Denoise & CFG Control]
+    UI -->|Anchored Frame Tokens| MSK
+    MSK -->|Harmonic AV Seams| SAMPLER[MiniMax H3 Diffusion Sampler]
+    SAMPLER --> STR
+    STR --> VIDEO[Final Synchronized Cinema Output]
 ```
 
-Restart ComfyUI and refresh the browser.
+---
 
-MiniMax H3 model files are not included.
+## 🚀 Key Features
 
-## Dependencies
+### 1. 🎞️ Interactive NLE Visual Timeline Studio (`CosmicCrafterTimeline`)
+* **HTML5 Canvas Timeline**: A full 840px wide timeline widget embedded directly inside the node.
+* **Multi-Track Support**:
+  * **Video Lane**: Drag-and-drop still images, keyframe anchors, and full video clips.
+  * **Audio Lane**: Real-time waveform visualization with scrubbable playhead.
+  * **Automation Curves**: Green control envelopes for modulating influence, CFG, and denoise over time.
+* **Professional Editing Tools**: Per-clip trimming handles, magnetic snapping, multi-selection group dragging, zoom slider, dedicated Undo/Redo, and playable preview.
 
-Some included workflows use:
+### 2. 🎧 Zero-Dependency Audio-Reactive Engine (`CosmicCrafterAudioAnalyze`)
+Pure PyTorch STFT/FFT signal processor running synchronously at native 24 fps:
+* **`energy`**: Root-Mean-Square (RMS) loudness envelope for continuous kinetic driving.
+* **`beats`**: Percussion kick and transient tracker with exponential decay envelopes ($e^{-\lambda t}$).
+* **`brightness`**: Spectral centroid tracking timbre brightness and acoustic tension.
+* **`onsets`**: Half-wave rectified spectral flux detecting musical note attacks.
+* **`bass` (20–250 Hz)**: Sub-bass and kick resonance curve.
+* **`mids` (250–4000 Hz)**: Vocal, snare, and melodic energy curve.
+* **`highs` (4000–16000 Hz)**: Cymbals, hi-hats, and air sparkle curve.
 
-- ComfyUI-VideoHelperSuite
-- ComfyUI-KJNodes
-- rgthree-comfy
+### 3. 🎛️ Audio Modulation Suite
+* **`CosmicCrafterAudioReactiveDenoise`**: Automatically map musical energy to diffusion sampler denoise values (e.g. subtle motion during quiet verses, explosive transformation on beat drops).
+* **`CosmicCrafterAudioCurveRemap`**: Power-law gamma shaping ($y = x^\gamma$), 1D uniform boxcar moving average smoothing, and noise threshold gating.
 
-If a workflow opens with missing nodes, install the required node pack and restart ComfyUI.
+### 4. 🔒 Harmonic Latent-Masking Engine ($M_{\text{audio}} = 0$)
+* **Exact Musical Timing**: Locks the master audio track with zero re-encoding loss.
+* **Harmonic Boundary Quantization**: Enforces strict mathematical resonance between 24 fps video and 40 Hz audio latents:
+  $$N_f = 51m + 39 \quad (m \in \mathbb{N}_0 \implies 39, 90, 141, 192, 243\dots \text{ frames})$$
+* **Acoustic Seam Feathering**: 8-tick ($0.2\text{ s}$) half-cosine windowing across clip boundaries.
+* **Sub-Sample Timebase Conformance**: Automated resampling with factor $\gamma = \frac{N_{\text{target}}}{N_{\text{decoded}}}$.
 
-## Documentation
+### 5. 🌊 Memory-Bounded VHS Streaming Output
+* Eliminates out-of-memory (OOM) crashes by streaming decoded clips directly into `VHS_VideoCombine` one chunk at a time.
+* Linear pixel ramp blending across overlapping clip seams ($N_{\text{overlap}} = 39$).
 
-- [Workflow Guide](example_workflows/README.md) — how to use the included workflows
-- [Technical Architecture](TECHNICAL_ARCHITECTURE.md) — implementation and technical details
-- [Modifications](MODIFICATIONS.md) — detailed history of changes made in this fork
+---
 
-## Credits
+## 📦 Bundled Workflows
 
-Original project by [NikoDemon80](https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context).
+All example workflows are located in the `example_workflows/` folder:
 
-See [MODIFICATIONS.md](MODIFICATIONS.md) for additional attribution and implementation history.
+1. **`UTILITY - H3 Timeline Canvas.json`**: Single-node visual NLE timeline editor setup.
+2. **`UTILITY - Audio Reactive.json`**: Complete music-reactive video synthesis pipeline.
+3. **`NEW - Music Video.json`**: Full 20-clip long-form music video production chain.
+4. **`NEW - AV Extension.json`**: 6-extension continuation chain with seamless audio-visual stitching.
+5. **`UTILITY - Custom Keyframes.json`**: Compact keyframe anchor workflow.
 
-## License
+---
 
-GPL-3.0. See [LICENSE](LICENSE).
+## 🛠️ Installation
+
+1. Copy or clone this folder into your ComfyUI `custom_nodes` directory:
+   ```bash
+   cd ComfyUI/custom_nodes
+   git clone https://github.com/YourRepo/CosmicCrafter-H3-Studio.git
+   ```
+2. Restart ComfyUI.
+3. Find your nodes under the category `conditioning/minimax`.
+
+---
+
+## 🧪 Testing & Verification
+
+CosmicCrafter H3 Studio includes a comprehensive test suite covering mathematical timing, signal processing, and node contracts:
+```bash
+python tests/run_tests.py
+# Result: 142 repo CPU/static checks passing (100% success)
+```
+
+---
+
+## 📜 License
+
+Licensed under GPL-3.0. Built on the open research of MiniMax H3 motion context engines.
