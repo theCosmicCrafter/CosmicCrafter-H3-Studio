@@ -252,6 +252,52 @@ def split_paragraphs(text, delimiter):
 # INPUT_TYPES so a workflow saved before they existed still maps its stored values
 # onto the right widgets (ComfyUI matches them by position, not by name).
 # APPEND to this tuple when adding a widget; never insert into the middle.
+
+def _ensure_h3_keyframe_ref_merge():
+    """ComfyUI 0.32/0.33 core bug fix: a conditioning carrying BOTH minimax_keyframes
+    and minimax_refs crashes the sampler -- model_base.extra_conds lets the refs
+    branch overwrite cond_video_latents, so the fixed-row count no longer
+    matches the packed layout (RuntimeError: shape mismatch). This built-in merge
+    wrapper safely merges keyframe and reference latents."""
+    try:
+        import comfy.model_base as _cmb
+        _orig = _cmb.MiniMaxH3.extra_conds
+        if getattr(_orig, "_h3_merge_repaired", False):
+            return
+
+        def _latent_rows(latents):
+            total = 0
+            for z in latents:
+                total += int(z.shape[0]) * int(z.shape[2]) * (int(z.shape[3]) // 2) * (int(z.shape[4]) // 2)
+            return total
+
+        def _extra_conds(self, **kwargs):
+            out = _orig(self, **kwargs)
+            payload = getattr(out.get("minimax_payload") if isinstance(out, dict) else None, "cond", None)
+            if not isinstance(payload, dict):
+                return out
+            kfs = payload.get("keyframes")
+            refs = payload.get("refs")
+            if not kfs or not refs:
+                return out
+            kf_lats = [kf.get("latent") for kf in kfs if kf.get("latent") is not None]
+            ref_lats = [r["latent"] for r in refs if "latent" in r]
+            have = payload.get("cond_video_latents") or []
+            if _latent_rows(have) == _latent_rows(kf_lats) + _latent_rows(ref_lats):
+                return out
+            payload["cond_video_latents"] = kf_lats + ref_lats
+            return out
+
+        _extra_conds._h3_merge_repaired = True
+        _cmb.MiniMaxH3.extra_conds = _extra_conds
+    except Exception:
+        pass
+
+try:
+    _ensure_h3_keyframe_ref_merge()
+except Exception:
+    pass
+
 ADDED_WIDGETS = (
     "beat_split", "per_beat_length",
     "watermark_text", "watermark_position", "watermark_size", "watermark_opacity",
@@ -4555,6 +4601,7 @@ def _upscale_model_list():
     time so newly-added models show up on a graph reload."""
     try:
         import folder_paths
+
         return ["none"] + list(folder_paths.get_filename_list("upscale_models"))
     except Exception:
         return ["none"]
