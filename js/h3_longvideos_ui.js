@@ -339,6 +339,49 @@ function updateShotBody(promptW, shotIndex, newBody) {
     promptW.value = newParas.join("\n\n");
 }
 
+
+function autoPlanPrompt(promptW, defaultSec = 7.0) {
+    if (!promptW || !promptW.value) return;
+    const raw = promptW.value.trim();
+    if (!raw) return;
+
+    // Preserve any existing lora tags or directives at the top
+    const loras = [];
+    const clean = raw.replace(/<lora:[^>]+>/g, (m) => {
+        loras.push(m);
+        return "";
+    }).trim();
+
+    // Check if already has seconds or shot markers
+    if (/seconds:\s*[\d\.]+/i.test(clean) || /\[Shot\s+\d+\]/i.test(clean)) {
+        // Already formatted, no need to auto-plan
+        return;
+    }
+
+    // Split into sentences / narrative chunks
+    const sentences = clean.split(/(?<=[\.!?])\s+/).filter(s => s.trim().length > 0);
+    if (sentences.length <= 1) {
+        // Single sentence: just attach seconds
+        promptW.value = (loras.length ? loras.join(" ") + "\n" : "") + clean + "\nseconds: " + defaultSec.toFixed(1);
+        return;
+    }
+
+    // Group into 2-3 sentences per shot (~6.0s to 8.0s)
+    const shots = [];
+    let current = [];
+    for (let i = 0; i < sentences.length; i++) {
+        current.push(sentences[i]);
+        if (current.length >= 2 || i === sentences.length - 1) {
+            const sec = (5.5 + Math.min(3.0, current.join(" ").length / 40)).toFixed(1);
+            shots.push(current.join(" ") + "\nseconds: " + sec);
+            current = [];
+        }
+    }
+
+    const header = loras.length ? loras.join(" ") + "\n\n" : "";
+    promptW.value = header + shots.join("\n\n");
+}
+
 function parsePromptBeats(promptText, defaultSeconds = 5.0) {
     if (!promptText || typeof promptText !== "string") return { paragraphs: [], shots: [] };
     const rawParas = promptText.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
@@ -416,6 +459,19 @@ function addNewBeat(promptWidget) {
     promptWidget.value = current ? `${current}\n\n${newBeatText}` : newBeatText;
     if (promptWidget.inputEl) promptWidget.inputEl.value = promptWidget.value;
     if (promptWidget.callback) promptWidget.callback(promptWidget.value);
+}
+
+
+function duplicateBeat(promptW, shotIndex) {
+    if (!promptW || !promptW.value) return;
+    const { shots } = parsePromptBeats(promptW.value);
+    if (shotIndex < 0 || shotIndex >= shots.length) return;
+    const targetShot = shots[shotIndex];
+    shots.splice(shotIndex + 1, 0, { ...targetShot, index: shotIndex + 1 });
+    promptW.value = shots.map((s, idx) => {
+        const body = (s.body || "").replace(/^seconds:\s*[\d\.]+\s*/i, "").trim();
+        return body + (s.seconds ? "\nseconds: " + s.seconds.toFixed(1) : "");
+    }).join("\n\n");
 }
 
 function deleteBeat(promptWidget, shotIndex) {
@@ -943,15 +999,45 @@ app.registerExtension({
                     : "TIMELINE DURATION [ Type beats in prompt or click + ADD BEAT ]";
                 ctx.fillText(titleText, margin + 8, m.ribbonY + 6);
 
-                // Global timeline duration step buttons
+                // LoRA count badge
+                const loraMatches = (promptText.match(/<lora:[^>]+>/g) || []);
+                let loraBadgeW = 0;
+                if (loraMatches.length > 0) {
+                    const badgeTxt = `[ ${loraMatches.length} LoRA${loraMatches.length > 1 ? "s" : ""} ACTIVE ]`;
+                    ctx.font = "bold 8px sans-serif";
+                    loraBadgeW = ctx.measureText(badgeTxt).width + 10;
+                    const badgeX = margin + fullW - 370;
+                    ctx.fillStyle = "#0369a1";
+                    ctx.beginPath(); ctx.roundRect(badgeX, m.ribbonY + 4, loraBadgeW, 14, 3); ctx.fill();
+                    ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 0.8; ctx.stroke();
+                    ctx.fillStyle = "#e0f2fe"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText(badgeTxt, badgeX + loraBadgeW / 2, m.ribbonY + 11);
+                }
+
+                // Global timeline buttons: [ SYNC ], [ AUTO-PLAN ], [ - 1.0s ], [ + 1.0s ]
                 const btnGlobalY = m.ribbonY + 4;
-                const durMinusX = margin + fullW - 170;
-                const durPlusX = margin + fullW - 120;
+                const syncX = margin + fullW - 275;
+                const planX = margin + fullW - 215;
+                const durMinusX = margin + fullW - 145;
+                const durPlusX = margin + fullW - 100;
 
                 node._globalDurBoxes = [
-                    { action: "minus", x: durMinusX, y: btnGlobalY, w: 42, h: 14 },
-                    { action: "plus", x: durPlusX, y: btnGlobalY, w: 42, h: 14 }
+                    { action: "sync", x: syncX, y: btnGlobalY, w: 55, h: 14 },
+                    { action: "autoplan", x: planX, y: btnGlobalY, w: 65, h: 14 },
+                    { action: "minus", x: durMinusX, y: btnGlobalY, w: 40, h: 14 },
+                    { action: "plus", x: durPlusX, y: btnGlobalY, w: 40, h: 14 }
                 ];
+
+                // [ SYNC ] button
+                ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.roundRect(syncX, btnGlobalY, 55, 14, 2); ctx.fill();
+                ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 0.8; ctx.stroke();
+                ctx.fillStyle = "#38bdf8"; ctx.font = "bold 8px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText("[ SYNC ]", syncX + 27, btnGlobalY + 7);
+
+                // [ AUTO-PLAN ] button
+                ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.roundRect(planX, btnGlobalY, 65, 14, 2); ctx.fill();
+                ctx.strokeStyle = "#a855f7"; ctx.lineWidth = 0.8; ctx.stroke();
+                ctx.fillStyle = "#c084fc"; ctx.fillText("[ AUTO-PLAN ]", planX + 32, btnGlobalY + 7);
 
                 ctx.fillStyle = "#1e293b";
                 ctx.beginPath(); ctx.roundRect(durMinusX, btnGlobalY, 42, 14, 2); ctx.fill();
@@ -1198,6 +1284,15 @@ app.registerExtension({
                 // Check Global Duration Step Buttons [-1.0s] / [+1.0s]
                 for (let gbox of (node._globalDurBoxes || [])) {
                     if (clickX >= gbox.x && clickX <= gbox.x + gbox.w && clickY >= gbox.y && clickY <= gbox.y + gbox.h) {
+                        if (gbox.action === "sync") {
+                            safeSetDirty(node);
+                            return true;
+                        }
+                        if (gbox.action === "autoplan") {
+                            autoPlanPrompt(promptW);
+                            safeSetDirty(node);
+                            return true;
+                        }
                         const shotSecW = node.widgets?.find(w => w.name === "shot_seconds");
                         const currentSec = shotSecW ? parseFloat(shotSecW.value || 5.0) : 5.0;
                         const delta = (gbox.action === "plus") ? 1.0 : -1.0;
@@ -1246,6 +1341,28 @@ app.registerExtension({
                             updateShotBody(promptW, selIdx, newBody.trim());
                             safeSetDirty(node);
                         }
+                    }
+                    return true;
+                }
+
+                if (node._inspectorDupBtn && clickX >= node._inspectorDupBtn.x && clickX <= node._inspectorDupBtn.x + node._inspectorDupBtn.w &&
+                    clickY >= node._inspectorDupBtn.y && clickY <= node._inspectorDupBtn.y + node._inspectorDupBtn.h) {
+                    const selIdx = node._selectedShotIndex;
+                    if (selIdx !== undefined) {
+                        duplicateBeat(promptW, selIdx);
+                        node._selectedShotIndex = selIdx + 1;
+                        safeSetDirty(node);
+                    }
+                    return true;
+                }
+
+                if (node._inspectorDelBtn && clickX >= node._inspectorDelBtn.x && clickX <= node._inspectorDelBtn.x + node._inspectorDelBtn.w &&
+                    clickY >= node._inspectorDelBtn.y && clickY <= node._inspectorDelBtn.y + node._inspectorDelBtn.h) {
+                    const selIdx = node._selectedShotIndex;
+                    if (selIdx !== undefined) {
+                        deleteBeat(promptW, selIdx);
+                        node._selectedShotIndex = undefined;
+                        safeSetDirty(node);
                     }
                     return true;
                 }

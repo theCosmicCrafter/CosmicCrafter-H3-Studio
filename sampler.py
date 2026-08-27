@@ -5271,6 +5271,76 @@ def _load_image_from_input_storage(filename):
         return None
 
 
+def resolve_lora_path(raw_name):
+    """Find a LoRA file path by relative path, stem, or fuzzy name."""
+    clean_name = raw_name.replace("/", os.sep).replace("\\", os.sep).strip()
+    try:
+        p = folder_paths.get_full_path("loras", clean_name)
+        if p and os.path.exists(p): return p
+    except Exception: pass
+    if not clean_name.lower().endswith((".safetensors", ".pt", ".bin")):
+        try:
+            p = folder_paths.get_full_path("loras", clean_name + ".safetensors")
+            if p and os.path.exists(p): return p
+        except Exception: pass
+    try:
+        all_files = folder_paths.get_filename_list("loras")
+        target_base = os.path.splitext(os.path.basename(clean_name))[0].lower()
+        for f in all_files:
+            f_base = os.path.splitext(os.path.basename(f))[0].lower()
+            if f_base == target_base:
+                p = folder_paths.get_full_path("loras", f)
+                if p and os.path.exists(p): return p
+    except Exception: pass
+    shared_loras = r"F:\Comfy-Desktop\ComfyUI-Shared\models\loras"
+    if os.path.exists(shared_loras):
+        target_base = os.path.splitext(os.path.basename(clean_name))[0].lower()
+        for root, _, files in os.walk(shared_loras):
+            for file in files:
+                if file.lower().endswith((".safetensors", ".pt", ".bin")):
+                    f_base = os.path.splitext(file)[0].lower()
+                    if f_base == target_base:
+                        return os.path.join(root, file)
+    return None
+
+
+def extract_and_apply_prompt_loras(model, clip, prompt):
+    """Scan prompt for <lora:name[:model_strength[:clip_strength]]> tags,
+    load them dynamically, and return (patched_model, patched_clip, cleaned_prompt, notes)."""
+    lora_tags = list(re.finditer(r"<lora:([^:>]+)(?::([^:>]+))?(?::([^:>]+))?>", prompt))
+    if not lora_tags:
+        return model, clip, prompt, ""
+
+    applied_notes = []
+    cleaned_prompt = prompt
+    for match in lora_tags:
+        full_tag = match.group(0)
+        raw_name = match.group(1).strip()
+        str_m = float(match.group(2)) if match.group(2) else 1.0
+        str_c = float(match.group(3)) if match.group(3) else str_m
+        cleaned_prompt = cleaned_prompt.replace(full_tag, "")
+        if str_m == 0.0 and str_c == 0.0:
+            continue
+        lora_path = resolve_lora_path(raw_name)
+        if lora_path and os.path.exists(lora_path):
+            try:
+                lora_data, lora_meta = comfy.utils.load_torch_file(lora_path, safe_load=True, return_metadata=True)
+                model, clip = comfy.sd.load_lora_for_models(model, clip, lora_data, str_m, str_c, lora_metadata=lora_meta)
+                name_display = os.path.splitext(os.path.basename(lora_path))[0]
+                applied_notes.append(f"{name_display} (x{str_m:.2g})")
+            except Exception as e:
+                applied_notes.append(f"ERR({raw_name}: {e})")
+        else:
+            applied_notes.append(f"MISSING({raw_name})")
+
+    cleaned_prompt = re.sub(r"[ \t]+", " ", cleaned_prompt)
+    cleaned_prompt = re.sub(r"\n\s*\n\s*\n+", "\n\n", cleaned_prompt).strip()
+    note = "Dynamic LoRA(s): " + ", ".join(applied_notes) if applied_notes else ""
+    return model, clip, cleaned_prompt, note
+
+
+
+
 class H3LongVideos:
     CATEGORY = "sampling/minimax"
     FUNCTION = "run"
@@ -5838,6 +5908,7 @@ class H3LongVideos:
         _deep_cleanup()
         return video, audio, shot_latent
 
+
     def run(self, model, clip, vae, audio_vae, prompt, resolution,
             steps, cfg, sampler_name, scheduler, seed,
             megapixels=1.0,
@@ -5872,6 +5943,7 @@ class H3LongVideos:
         # A stale resident model from a different checkpoint would otherwise poison
         # every VRAM measurement below (and leave old hooks/allocator blocks behind),
         # so this must run before the schedule patch and before vram_gb().
+        model, clip, prompt, prompt_lora_note = extract_and_apply_prompt_loras(model, clip, prompt)
         swap_note = flush_for_model_change(model)
 
         # Cheap wiring preflight: a video VAE on the audio_vae socket only blows up
@@ -6716,7 +6788,8 @@ class H3LongVideos:
                    if wardrobe_notes else "")
                 + (f"{ref_note}." if ref_note else "")
                 + (f" {fps_note}." if fps_note else "")
-                + (f" {swap_note}." if swap_note else "")
+                + (f" {swap_note}." if swap_note else "") + \
+                (f" {prompt_lora_note}." if prompt_lora_note else "")
                 + (f" free VRAM/shot: {vram_trace}." if len(vram_trace) > 1 else "")
                 + (f" {accel_note}." if accel_note else "")
                 + (f" {ms_note}." if ms_note else "")
