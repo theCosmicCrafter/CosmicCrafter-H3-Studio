@@ -116,9 +116,25 @@ function applyTabFilter(node, activeTab) {
         if (shouldShow) {
             w.type = w._h3_origType;
             w.computeSize = w._h3_origComputeSize;
+            if (w.inputEl) {
+                w.inputEl.style.display = "";
+                w.inputEl.hidden = false;
+            }
+            if (w.element) {
+                w.element.style.display = "";
+                w.element.hidden = false;
+            }
         } else {
             w.type = "hidden";
             w.computeSize = () => [0, -4];
+            if (w.inputEl) {
+                w.inputEl.style.display = "none";
+                w.inputEl.hidden = true;
+            }
+            if (w.element) {
+                w.element.style.display = "none";
+                w.element.hidden = true;
+            }
         }
     }
 
@@ -329,9 +345,42 @@ app.registerExtension({
                     };
                 }
 
+                // Clean up any legacy or orphaned exposed_terms DOM widget
+                if (node.widgets) {
+                    const expW = node.widgets.find(w => w.name === "exposed_terms");
+                    if (expW) {
+                        if (expW.inputEl) expW.inputEl.remove();
+                        const idx = node.widgets.indexOf(expW);
+                        if (idx !== -1) node.widgets.splice(idx, 1);
+                    }
+                }
+                document.querySelectorAll('textarea').forEach(el => {
+                    if (el.name === 'exposed_terms' || (el.title && el.title.includes('stripped body zone'))) {
+                        el.remove();
+                    }
+                });
+
                 // Initial layout filtering
                 applyTabFilter(node, node._h3_active_tab || "core");
             }, 10);
+
+            const origOnConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function () {
+                const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
+                const n = this;
+                setTimeout(() => {
+                    if (n.widgets) {
+                        const expW = n.widgets.find(w => w.name === "exposed_terms");
+                        if (expW) {
+                            if (expW.inputEl) expW.inputEl.remove();
+                            const idx = n.widgets.indexOf(expW);
+                            if (idx !== -1) n.widgets.splice(idx, 1);
+                        }
+                    }
+                    applyTabFilter(n, n._h3_active_tab || "core");
+                }, 50);
+                return r;
+            };
 
             // Inline Plan Execution Hook
             const origOnExecuted = node.onExecuted;
