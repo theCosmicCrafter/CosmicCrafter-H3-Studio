@@ -3,7 +3,7 @@ import { app } from "../../scripts/app.js";
 /**
  * MiniMax-H3 LongVideos Dynamic Studio Interface
  * - Professional Studio Typography (Zero Emojis, 100% Pure ASCII)
- * - Dynamic Connection Bay Spacing (Header placed below slot area, zero slot collisions)
+ * - Compact Connection Bay (6 inputs, 6 outputs, zero wasted space)
  * - Dynamic Full-Width Vector Drawing (Matches node width dynamically)
  * - Zero Widget Shifting (Preserves 100% positional widgets_values integrity)
  * - Interactive Shot Sequence Timeline Ribbon with Drag-and-Drop Reordering
@@ -120,10 +120,9 @@ function safeSetDirty(node) {
 }
 
 function getHeaderMetrics(node) {
-    const maxSlots = Math.max(node?.inputs?.length || 0, node?.outputs?.length || 0);
-    // LiteGraph slots start around y = 28 and step ~20-22px
-    const slotAreaBottom = Math.max(34, 30 + maxSlots * 21);
-    const headerStartY = slotAreaBottom + 12;
+    // 6 inputs on left, 6 outputs on right = 150px connection bay
+    const slotAreaBottom = 152;
+    const headerStartY = 158;
 
     const tabY = headerStartY;
     const tabH = 26;
@@ -385,8 +384,8 @@ function applyTabFilter(node, activeTab) {
     const minWidth = 640;
     const computedSize = node.computeSize();
     const newWidth = Math.max(node.size[0] || minWidth, minWidth);
-    const newHeight = Math.max(computedSize[1] || (metrics.totalHeaderBottom + 120), metrics.totalHeaderBottom + 120);
-    node.setSize([newWidth, newHeight]);
+    const targetHeight = Math.min(Math.max(computedSize[1] || 480, metrics.totalHeaderBottom + 120), 850);
+    node.setSize([newWidth, targetHeight]);
 
     if (typeof node.onResize === "function") {
         node.onResize(node.size);
@@ -412,7 +411,7 @@ app.registerExtension({
             node._draggingIndex = null;
             node._dragStartX = 0;
 
-            // Hook dynamic audio shift coupling: maintain 4:1 video:audio shift scale
+            // Dynamic audio shift coupling: maintain 4:1 video:audio shift scale
             setTimeout(() => {
                 const shiftVW = node.widgets ? node.widgets.find(w => w.name === "shift_video") : null;
                 const shiftAW = node.widgets ? node.widgets.find(w => w.name === "shift_audio") : null;
@@ -462,7 +461,7 @@ app.registerExtension({
             return r;
         };
 
-        // Full-Width Vector Canvas Drawing (Placed below slot area)
+        // Full-Width Vector Canvas Drawing (Placed below connection bay)
         const origOnDrawForeground = nodeType.prototype.onDrawForeground;
         nodeType.prototype.onDrawForeground = function(ctx, canvas) {
             const r = origOnDrawForeground ? origOnDrawForeground.apply(this, arguments) : undefined;
@@ -481,11 +480,11 @@ app.registerExtension({
             ctx.strokeStyle = "#2e2e42";
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(margin, m.slotAreaBottom + 4);
-            ctx.lineTo(margin + fullW, m.slotAreaBottom + 4);
+            ctx.moveTo(margin, m.slotAreaBottom - 2);
+            ctx.lineTo(margin + fullW, m.slotAreaBottom - 2);
             ctx.stroke();
 
-            // 1. Tab Navigation Bar (Placed cleanly below slot bay)
+            // 1. Tab Navigation Bar (Placed cleanly below connection bay)
             const tabW = fullW / TABS.length;
 
             for (let i = 0; i < TABS.length; i++) {
