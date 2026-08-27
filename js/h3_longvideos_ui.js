@@ -1,11 +1,12 @@
-import { app } from "../../../scripts/app.js";
+import { app } from "../../scripts/app.js";
 
-const TARGET_NODES = new Set([
-    "H3LongVideos",
-    "H3LongVideosFL2VA",
-    "H3LongVideosV1",
-    "H3LongVideosREF2VA"
-]);
+/**
+ * MiniMax-H3 LongVideos Dynamic Tabbed Studio Interface
+ * Provides clean categorised tab navigation, 1-click presets,
+ * responsive canvas layouts, and real-time parameter coupling.
+ */
+
+const TARGET_NODES = new Set(["H3LongVideos", "H3_Promptor"]);
 
 const TABS = [
     { id: "presets", label: "⚡ Presets" },
@@ -19,7 +20,7 @@ const TABS = [
 ];
 
 const WIDGET_CATEGORIES = {
-    // 🎬 Core Setup
+    // ⚡ Presets & 🎬 Core Setup
     config_preset: "core",
     prompt: "core",
     resolution: "core",
@@ -48,8 +49,10 @@ const WIDGET_CATEGORIES = {
     non_diegetic_music: "audio",
     auto_silence_nonspeech: "audio",
     allow_nonspeech_vocals: "audio",
+    mute_nonspeech_audio: "audio",
+    mute_fade_ms: "audio",
 
-    // 🛡️ Director Guards
+    // 🛡️ Guards & Physical Logic
     subject_count_guard: "guards",
     anatomy_guard: "guards",
     motion_guard: "guards",
@@ -61,7 +64,7 @@ const WIDGET_CATEGORIES = {
     exposed_terms: "guards",
     lock_restraints: "guards",
 
-    // 🎨 Post-Processing & Overlays
+    // 🎨 Overlays, Watermarks & Upscale
     upscale: "overlays",
     upscale_model: "overlays",
     upscale_target_short_edge: "overlays",
@@ -79,7 +82,7 @@ const WIDGET_CATEGORIES = {
     overlay_font: "overlays",
     overlay_stroke: "overlays",
 
-    // ⚙️ Performance & VRAM
+    // ⚙️ Advanced Engine & Hardware
     plan_only: "advanced",
     fps: "advanced",
     apply_model_sampling: "advanced",
@@ -94,25 +97,44 @@ const WIDGET_CATEGORIES = {
     decode_tile_size: "advanced"
 };
 
+function safeSetDirty(node) {
+    try { node?.setDirtyCanvas?.(true, true); } catch (_) {}
+    try { node?.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
+    try { app?.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
+    try { app?.canvas?.setDirty?.(true, true); } catch (_) {}
+}
+
 function applyTabFilter(node, activeTab) {
-    if (!node.widgets) return;
+    if (!node || !node.widgets) return;
 
     for (const w of node.widgets) {
-        // Don't filter custom UI controls
+        // Never filter custom tab bar, action bar, or plan preview widgets
         if (w.name === "h3_tabs" || w.name === "h3_action_bar" || w.name === "h3_plan_preview") {
             continue;
         }
 
-        // Cache original properties
-        if (!w._h3_origType) {
-            w._h3_origType = w.type || "custom";
+        // Cache original widget type and computeSize safely (never store "hidden")
+        if (!w._h3_origType || w._h3_origType === "hidden") {
+            if (w.type && w.type !== "hidden") {
+                w._h3_origType = w.type;
+            } else if (Array.isArray(w.options?.values)) {
+                w._h3_origType = "combo";
+            } else if (typeof w.value === "boolean") {
+                w._h3_origType = "toggle";
+            } else if (typeof w.value === "number") {
+                w._h3_origType = "number";
+            } else {
+                w._h3_origType = "customtext";
+            }
         }
-        if (!w._h3_origComputeSize) {
+
+        if (!w._h3_origComputeSize && typeof w.computeSize === "function") {
             w._h3_origComputeSize = w.computeSize;
         }
 
         const category = WIDGET_CATEGORIES[w.name] || "core";
         let shouldShow = false;
+
         if (activeTab === "all") {
             shouldShow = true;
         } else if (activeTab === "presets") {
@@ -127,7 +149,15 @@ function applyTabFilter(node, activeTab) {
 
         if (shouldShow) {
             w.type = w._h3_origType;
-            w.computeSize = w._h3_origComputeSize;
+            w.hidden = false;
+            if (w.options) w.options.hidden = false;
+
+            if (w._h3_origComputeSize && w._h3_origComputeSize !== w._h3_zeroComputeSize) {
+                w.computeSize = w._h3_origComputeSize;
+            } else {
+                delete w.computeSize;
+            }
+
             if (w.inputEl) {
                 w.inputEl.style.display = "";
                 w.inputEl.hidden = false;
@@ -138,7 +168,11 @@ function applyTabFilter(node, activeTab) {
             }
         } else {
             w.type = "hidden";
-            w.computeSize = () => [0, -4];
+            w.hidden = true;
+            if (w.options) w.options.hidden = true;
+
+            w.computeSize = w._h3_zeroComputeSize || (w._h3_zeroComputeSize = () => [0, -4]);
+
             if (w.inputEl) {
                 w.inputEl.style.display = "none";
                 w.inputEl.hidden = true;
@@ -150,16 +184,18 @@ function applyTabFilter(node, activeTab) {
         }
     }
 
-    // Shrink/expand node smoothly
-    const minWidth = 480;
+    // Recalculate dynamic node dimensions smoothly
+    const minWidth = 500;
     const computedSize = node.computeSize();
     const newWidth = Math.max(node.size[0] || minWidth, minWidth);
-    const newHeight = computedSize[1];
+    const newHeight = Math.max(computedSize[1] || 200, 200);
     node.setSize([newWidth, newHeight]);
 
-    if (node.graph) {
-        node.setDirtyCanvas(true, true);
+    if (typeof node.onResize === "function") {
+        node.onResize(node.size);
     }
+
+    safeSetDirty(node);
 }
 
 app.registerExtension({
@@ -180,7 +216,9 @@ app.registerExtension({
                 name: "h3_tabs",
                 type: "h3_tabs",
                 value: "core",
+                last_y: 0,
                 draw(ctx, node, widget_width, y, widget_height) {
+                    this.last_y = y; // CRITICAL for ComfyUI hit testing
                     const margin = 6;
                     const availableWidth = widget_width - margin * 2;
                     const tabWidth = availableWidth / TABS.length;
@@ -195,7 +233,7 @@ app.registerExtension({
                         // Pill background
                         ctx.fillStyle = isActive ? "#3a3875" : "#1e1e28";
                         ctx.beginPath();
-                        ctx.roundRect(x + 2, y + 2, tabWidth - 4, tabHeight - 4, 4);
+                        ctx.roundRect(x + 1, y + 2, tabWidth - 2, tabHeight - 4, 4);
                         ctx.fill();
 
                         // Accent border on active
@@ -219,22 +257,22 @@ app.registerExtension({
                     ctx.restore();
                 },
                 mouse(event, pos, node) {
-                    if (event.type === "pointerdown" || event.type === "mousedown") {
-                        const margin = 6;
-                        const widget_width = node.size[0];
-                        const availableWidth = widget_width - margin * 2;
-                        const tabWidth = availableWidth / TABS.length;
-                        const clickX = pos[0] - margin;
+                    const margin = 6;
+                    const widget_width = node.size[0];
+                    const availableWidth = widget_width - margin * 2;
+                    const tabWidth = availableWidth / TABS.length;
+                    const clickX = pos[0] - margin;
 
-                        const clickedIndex = Math.floor(clickX / tabWidth);
-                        if (clickedIndex >= 0 && clickedIndex < TABS.length) {
-                            const newTab = TABS[clickedIndex].id;
-                            if (node._h3_active_tab !== newTab) {
-                                node._h3_active_tab = newTab;
-                                applyTabFilter(node, newTab);
-                            }
-                            return true;
+                    if (clickX < 0 || clickX > availableWidth) return false;
+
+                    const clickedIndex = Math.floor(clickX / tabWidth);
+                    if (clickedIndex >= 0 && clickedIndex < TABS.length) {
+                        const newTab = TABS[clickedIndex].id;
+                        if (node._h3_active_tab !== newTab) {
+                            node._h3_active_tab = newTab;
+                            applyTabFilter(node, newTab);
                         }
+                        return true;
                     }
                     return false;
                 },
@@ -247,7 +285,9 @@ app.registerExtension({
             const actionBarWidget = {
                 name: "h3_action_bar",
                 type: "h3_action_bar",
+                last_y: 0,
                 draw(ctx, node, widget_width, y, widget_height) {
+                    this.last_y = y; // CRITICAL for ComfyUI hit testing
                     const planWidget = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
                     const isPlanOnly = planWidget ? Boolean(planWidget.value) : false;
 
@@ -256,7 +296,6 @@ app.registerExtension({
                     const x = 8;
 
                     ctx.save();
-                    // Background pill
                     ctx.fillStyle = isPlanOnly ? "#1c3d28" : "#262635";
                     ctx.beginPath();
                     ctx.roundRect(x, y + 2, btnWidth, btnHeight - 4, 4);
@@ -266,13 +305,11 @@ app.registerExtension({
                     ctx.lineWidth = 1;
                     ctx.stroke();
 
-                    // Status text
                     ctx.fillStyle = isPlanOnly ? "#6ee7b7" : "#cbd5e1";
                     ctx.font = "bold 11px sans-serif";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
 
-                    const statusIcon = isPlanOnly ? "⚡" : "▶";
                     const statusText = isPlanOnly
                         ? "⚡ MODE: PLAN ONLY (Fast Preview, 0s Render)"
                         : "▶ MODE: FULL RENDER (Generate Video & Audio)";
@@ -281,16 +318,14 @@ app.registerExtension({
                     ctx.restore();
                 },
                 mouse(event, pos, node) {
-                    if (event.type === "pointerdown" || event.type === "mousedown") {
-                        const planWidget = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
-                        if (planWidget) {
-                            planWidget.value = !planWidget.value;
-                            if (planWidget.callback) {
-                                planWidget.callback(planWidget.value);
-                            }
-                            node.setDirtyCanvas(true, true);
-                            return true;
+                    const planWidget = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
+                    if (planWidget) {
+                        planWidget.value = !planWidget.value;
+                        if (planWidget.callback) {
+                            planWidget.callback(planWidget.value);
                         }
+                        safeSetDirty(node);
+                        return true;
                     }
                     return false;
                 },
@@ -303,8 +338,48 @@ app.registerExtension({
             node.widgets.unshift(actionBarWidget);
             node.widgets.unshift(tabBarWidget);
 
-            // Hook preset auto-configuration
+            // Hook node.onMouseDown delegation to guarantee tab bar hit testing works
+            const origNodeMouseDown = node.onMouseDown;
+            node.onMouseDown = function(event, pos, canvas) {
+                if (tabBarWidget.last_y !== undefined) {
+                    const ty = tabBarWidget.last_y;
+                    if (pos[1] >= ty - 2 && pos[1] <= ty + 34) {
+                        if (tabBarWidget.mouse(event, pos, this)) {
+                            return true;
+                        }
+                    }
+                }
+                if (actionBarWidget.last_y !== undefined) {
+                    const ay = actionBarWidget.last_y;
+                    if (pos[1] >= ay - 2 && pos[1] <= ay + 30) {
+                        if (actionBarWidget.mouse(event, pos, this)) {
+                            return true;
+                        }
+                    }
+                }
+                if (origNodeMouseDown) {
+                    return origNodeMouseDown.apply(this, arguments);
+                }
+            };
+
+            // Hook preset auto-configuration and reordering
             setTimeout(() => {
+                // Ensure config_preset sits at the top of parameters, directly above prompt
+                const cpIndex = node.widgets.findIndex(w => w.name === "config_preset");
+                const promptIndex = node.widgets.findIndex(w => w.name === "prompt");
+                if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
+                    const cpWidget = node.widgets.splice(cpIndex, 1)[0];
+                    node.widgets.splice(promptIndex, 0, cpWidget);
+                }
+
+                // Clean up any legacy or orphaned exposed_terms DOM widget
+                const expWidget = node.widgets.find(w => w.name === "exposed_terms");
+                if (expWidget) {
+                    if (expWidget.inputEl) expWidget.inputEl.remove();
+                    const idx = node.widgets.indexOf(expWidget);
+                    if (idx !== -1) node.widgets.splice(idx, 1);
+                }
+
                 const presetWidget = node.widgets.find(w => w.name === "config_preset");
                 if (presetWidget) {
                     const origCb = presetWidget.callback;
@@ -379,7 +454,7 @@ app.registerExtension({
                             if (tileF) tileF.value = 8;
                             if (tileS) tileS.value = 256;
                         }
-                        node.setDirtyCanvas(true, true);
+                        safeSetDirty(node);
                     };
                 }
 
@@ -394,29 +469,13 @@ app.registerExtension({
                             shiftAW._auto_coupled = true;
                             shiftAW.value = parseFloat((val / 4.0).toFixed(2));
                         }
-                        node.setDirtyCanvas(true, true);
+                        safeSetDirty(node);
                     };
                 }
 
-                // Ensure config_preset sits at the top of parameters, directly above prompt
-                const cpIndex = node.widgets.findIndex(w => w.name === "config_preset");
-                const promptIndex = node.widgets.findIndex(w => w.name === "prompt");
-                if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
-                    const cpWidget = node.widgets.splice(cpIndex, 1)[0];
-                    node.widgets.splice(promptIndex, 0, cpWidget);
-                }
-
-                // Clean up any legacy or orphaned exposed_terms DOM widget
-                if (node.widgets) {
-                    const expW = node.widgets.find(w => w.name === "exposed_terms");
-                    if (expW) {
-                        if (expW.inputEl) expW.inputEl.remove();
-                        const idx = node.widgets.indexOf(expW);
-                        if (idx !== -1) node.widgets.splice(idx, 1);
-                    }
-                }
-                document.querySelectorAll('textarea').forEach(el => {
-                    if (el.name === 'exposed_terms' || (el.title && el.title.includes('stripped body zone'))) {
+                // Clean orphaned textareas in DOM
+                document.querySelectorAll("textarea").forEach(el => {
+                    if (el.className && el.className.includes("exposed_terms")) {
                         el.remove();
                     }
                 });
@@ -424,30 +483,6 @@ app.registerExtension({
                 // Initial layout filtering
                 applyTabFilter(node, node._h3_active_tab || "core");
             }, 10);
-
-            const origOnConfigure = nodeType.prototype.onConfigure;
-            nodeType.prototype.onConfigure = function () {
-                const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
-                const n = this;
-                setTimeout(() => {
-                    if (n.widgets) {
-                        const cpIndex = n.widgets.findIndex(w => w.name === "config_preset");
-                        const promptIndex = n.widgets.findIndex(w => w.name === "prompt");
-                        if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
-                            const cpWidget = n.widgets.splice(cpIndex, 1)[0];
-                            n.widgets.splice(promptIndex, 0, cpWidget);
-                        }
-                        const expW = n.widgets.find(w => w.name === "exposed_terms");
-                        if (expW) {
-                            if (expW.inputEl) expW.inputEl.remove();
-                            const idx = n.widgets.indexOf(expW);
-                            if (idx !== -1) n.widgets.splice(idx, 1);
-                        }
-                    }
-                    applyTabFilter(n, n._h3_active_tab || "core");
-                }, 50);
-                return r;
-            };
 
             // Inline Plan Execution Hook
             const origOnExecuted = node.onExecuted;
@@ -468,9 +503,34 @@ app.registerExtension({
                 }
 
                 previewWidget.value = "📋 LAST EXECUTION / SHOT PLAN:\n" + infoText;
-                node.setDirtyCanvas(true, true);
+                safeSetDirty(node);
             };
 
+            return r;
+        };
+
+        // Top-level onConfigure hook for restoring workflows safely
+        const origOnConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () {
+            const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
+            const n = this;
+            setTimeout(() => {
+                if (n.widgets) {
+                    const cpIndex = n.widgets.findIndex(w => w.name === "config_preset");
+                    const promptIndex = n.widgets.findIndex(w => w.name === "prompt");
+                    if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
+                        const cpWidget = n.widgets.splice(cpIndex, 1)[0];
+                        n.widgets.splice(promptIndex, 0, cpWidget);
+                    }
+                    const expW = n.widgets.find(w => w.name === "exposed_terms");
+                    if (expW) {
+                        if (expW.inputEl) expW.inputEl.remove();
+                        const idx = n.widgets.indexOf(expW);
+                        if (idx !== -1) n.widgets.splice(idx, 1);
+                    }
+                }
+                applyTabFilter(n, n._h3_active_tab || "core");
+            }, 50);
             return r;
         };
     }
