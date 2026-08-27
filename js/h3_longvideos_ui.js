@@ -1,14 +1,17 @@
 import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 /**
- * MiniMax-H3 LongVideos Dynamic Studio Interface
- * - Professional Studio Typography (Zero Emojis, 100% Pure ASCII)
- * - Compact Connection Bay (6 inputs, 6 outputs, zero wasted space)
- * - Dynamic Full-Width Vector Drawing (Matches node width dynamically)
- * - Zero Widget Shifting (Preserves 100% positional widgets_values integrity)
- * - Interactive Shot Sequence Timeline Ribbon with Drag-and-Drop Reordering
- * - Instant Duration Controls (+/- 0.5s)
- * - Category Tab Navigation & 1-Click Presets
+ * MiniMax-H3 LongVideos Professional Video Editing Studio Interface
+ * Inspired by Maestro & LTX Studio:
+ * - Direct Drag-and-Drop Image Wells on Timeline & Reference Tray
+ * - 1-Click File Browser Fallback on all Drop Zones
+ * - Live Canvas Letterboxed Image Thumbnails with [X] Clear
+ * - Embedded Style & Character Reference Asset Bay (<Picture 1>..<Picture 4>)
+ * - Interactive Shot Sequence Track with Drag Reordering & Quick Duration (+/- 0.5s)
+ * - 1-Click [+ ADD BEAT] and per-shot [X] Delete
+ * - Bi-directional Real-Time Script Synchronization
+ * - 100% Pure ASCII Typography (Zero Emojis)
  */
 
 const TARGET_NODES = new Set(["H3LongVideos", "H3_Promptor"]);
@@ -35,7 +38,6 @@ const PRESETS = [
 ];
 
 const WIDGET_CATEGORIES = {
-    // Core
     prompt: "core",
     resolution: "core",
     megapixels: "core",
@@ -45,7 +47,6 @@ const WIDGET_CATEGORIES = {
     sampler_name: "core",
     scheduler: "core",
 
-    // Directing & Pacing
     shot_seconds: "directing",
     per_beat_length: "directing",
     beat_split: "directing",
@@ -57,7 +58,6 @@ const WIDGET_CATEGORIES = {
     handoff_offset: "directing",
     vary_seed_per_shot: "directing",
 
-    // Soundscape & Audio
     auto_soundscape: "audio",
     global_soundscape: "audio",
     non_diegetic_music: "audio",
@@ -66,7 +66,6 @@ const WIDGET_CATEGORIES = {
     mute_nonspeech_audio: "audio",
     mute_fade_ms: "audio",
 
-    // Guards & Physical Logic
     subject_count_guard: "guards",
     anatomy_guard: "guards",
     motion_guard: "guards",
@@ -78,7 +77,6 @@ const WIDGET_CATEGORIES = {
     exposed_terms: "guards",
     lock_restraints: "guards",
 
-    // Overlays & Post
     upscale: "overlays",
     upscale_model: "overlays",
     upscale_target_short_edge: "overlays",
@@ -96,7 +94,6 @@ const WIDGET_CATEGORIES = {
     overlay_font: "overlays",
     overlay_stroke: "overlays",
 
-    // Advanced Engine & Hardware
     plan_only: "advanced",
     fps: "advanced",
     apply_model_sampling: "advanced",
@@ -109,7 +106,9 @@ const WIDGET_CATEGORIES = {
     cleanup_between_shots: "advanced",
     decode_tile_frames: "advanced",
     decode_tile_size: "advanced",
-    config_preset: "presets"
+    config_preset: "presets",
+    first_frame_path: "core",
+    ref_paths: "core"
 };
 
 function safeSetDirty(node) {
@@ -119,8 +118,64 @@ function safeSetDirty(node) {
     try { app?.canvas?.setDirty?.(true, true); } catch (_) {}
 }
 
+const _IMAGE_CACHE = new Map();
+function getCachedImage(filename) {
+    if (!filename) return null;
+    if (_IMAGE_CACHE.has(filename)) return _IMAGE_CACHE.get(filename);
+    const img = new Image();
+    img.src = api.apiURL(`/view?filename=${encodeURIComponent(filename)}&type=input`);
+    _IMAGE_CACHE.set(filename, img);
+    return img;
+}
+
+async function uploadImageFile(file) {
+    try {
+        const body = new FormData();
+        body.append("image", file);
+        body.append("overwrite", "true");
+        const resp = await api.fetchApi("/upload/image", { method: "POST", body });
+        if (resp.status === 200) {
+            const data = await resp.json();
+            return data.name;
+        }
+    } catch (e) {
+        console.error("[MiniMax-H3] Upload failed:", e);
+    }
+    return null;
+}
+
+function promptForLocalImage(onLoaded) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp,image/jpg";
+    input.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const name = await uploadImageFile(file);
+            if (name) onLoaded(name);
+        }
+    };
+    input.click();
+}
+
+function drawLetterboxedThumbnail(ctx, img, x, y, w, h) {
+    if (!img || !img.complete || img.naturalWidth === 0) {
+        ctx.fillStyle = "#1e1e2c";
+        ctx.fillRect(x, y, w, h);
+        return;
+    }
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    const scale = Math.min(w / iw, h / ih);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const dx = x + (w - dw) / 2;
+    const dy = y + (h - dh) / 2;
+    ctx.drawImage(img, dx, dy, dw, dh);
+}
+
 function getHeaderMetrics(node) {
-    // 6 inputs on left, 6 outputs on right = 150px connection bay
+    // 6 inputs, 6 outputs connection bay
     const slotAreaBottom = 152;
     const headerStartY = 158;
 
@@ -133,8 +188,11 @@ function getHeaderMetrics(node) {
     const presetY = modeY + modeH + 6;
     const presetH = 24;
 
-    const ribbonY = presetY + presetH + 6;
-    const ribbonH = 82;
+    const refTrayY = presetY + presetH + 6;
+    const refTrayH = 58;
+
+    const ribbonY = refTrayY + refTrayH + 6;
+    const ribbonH = 88;
 
     const totalHeaderBottom = node?._h3_show_timeline ? (ribbonY + ribbonH + 8) : (presetY + presetH + 8);
 
@@ -144,6 +202,7 @@ function getHeaderMetrics(node) {
         tabY, tabH,
         modeY, modeH,
         presetY, presetH,
+        refTrayY, refTrayH,
         ribbonY, ribbonH,
         totalHeaderBottom
     };
@@ -214,6 +273,26 @@ function reorderPromptBeats(promptWidget, fromIndex, toIndex) {
     const item = paragraphs.splice(fromIndex, 1)[0];
     paragraphs.splice(toIndex, 0, item);
 
+    promptWidget.value = paragraphs.join("\n\n");
+    if (promptWidget.inputEl) promptWidget.inputEl.value = promptWidget.value;
+    if (promptWidget.callback) promptWidget.callback(promptWidget.value);
+}
+
+function addNewBeat(promptWidget) {
+    if (!promptWidget) return;
+    const current = (promptWidget.value || "").trim();
+    const newBeatText = `Shot description of the new scene beat.\nseconds: 5.0`;
+    promptWidget.value = current ? `${current}\n\n${newBeatText}` : newBeatText;
+    if (promptWidget.inputEl) promptWidget.inputEl.value = promptWidget.value;
+    if (promptWidget.callback) promptWidget.callback(promptWidget.value);
+}
+
+function deleteBeat(promptWidget, shotIndex) {
+    if (!promptWidget || !promptWidget.value) return;
+    const { paragraphs } = parsePromptBeats(promptWidget.value);
+    if (shotIndex === 0) return; // Cannot delete Anchor
+    if (shotIndex < 0 || shotIndex >= paragraphs.length) return;
+    paragraphs.splice(shotIndex, 1);
     promptWidget.value = paragraphs.join("\n\n");
     if (promptWidget.inputEl) promptWidget.inputEl.value = promptWidget.value;
     if (promptWidget.callback) promptWidget.callback(promptWidget.value);
@@ -306,8 +385,7 @@ function applyTabFilter(node, activeTab) {
     node.widgets_start_y = metrics.totalHeaderBottom;
 
     for (const w of node.widgets) {
-        if (w.name === "config_preset") {
-            // Rendered in custom header bar below connection bay
+        if (w.name === "config_preset" || w.name === "first_frame_path" || w.name === "ref_paths") {
             w.type = "hidden";
             w.hidden = true;
             if (w.options) w.options.hidden = true;
@@ -381,7 +459,7 @@ function applyTabFilter(node, activeTab) {
         }
     }
 
-    const minWidth = 640;
+    const minWidth = 660;
     const computedSize = node.computeSize();
     const newWidth = Math.max(node.size[0] || minWidth, minWidth);
     const targetHeight = Math.min(Math.max(computedSize[1] || 480, metrics.totalHeaderBottom + 120), 850);
@@ -408,8 +486,74 @@ app.registerExtension({
             node._h3_active_tab = "core";
             node._h3_show_timeline = true;
             node._shotBoxes = [];
+            node._refBoxes = [];
             node._draggingIndex = null;
             node._dragStartX = 0;
+
+            // HTML5 Drag and Drop Listener on window for file drops
+            if (!window._h3_drop_bound) {
+                window._h3_drop_bound = true;
+                window.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                });
+                window.addEventListener("drop", async (e) => {
+                    if (!e.dataTransfer?.files?.length) return;
+                    const file = e.dataTransfer.files[0];
+                    if (!file.type.startsWith("image/")) return;
+
+                    const canvas = app.canvas;
+                    if (!canvas) return;
+                    const pos = canvas.convertEventToCanvasOffset(e);
+
+                    // Find if dropped inside this node
+                    const nodes = canvas.graph?._nodes || [];
+                    for (let n of nodes) {
+                        if (!TARGET_NODES.has(n.type)) continue;
+                        const nx = n.pos[0];
+                        const ny = n.pos[1];
+                        const nw = n.size[0];
+                        const nh = n.size[1];
+
+                        if (pos[0] >= nx && pos[0] <= nx + nw && pos[1] >= ny && pos[1] <= ny + nh) {
+                            const relX = pos[0] - nx;
+                            const relY = pos[1] - ny;
+                            const m = getHeaderMetrics(n);
+
+                            // 1. Check if dropped on S1 (Anchor)
+                            const s1Box = (n._shotBoxes || [])[0];
+                            if (s1Box && relX >= s1Box.x && relX <= s1Box.x + s1Box.w && relY >= s1Box.y && relY <= s1Box.y + s1Box.h) {
+                                e.preventDefault();
+                                const name = await uploadImageFile(file);
+                                if (name) {
+                                    const ffW = n.widgets?.find(w => w.name === "first_frame_path");
+                                    if (ffW) ffW.value = name;
+                                    safeSetDirty(n);
+                                }
+                                return;
+                            }
+
+                            // 2. Check if dropped on Reference Tray
+                            for (let rb of (n._refBoxes || [])) {
+                                if (relX >= rb.x && relX <= rb.x + rb.w && relY >= rb.y && relY <= rb.y + rb.h) {
+                                    e.preventDefault();
+                                    const name = await uploadImageFile(file);
+                                    if (name) {
+                                        const refW = n.widgets?.find(w => w.name === "ref_paths");
+                                        if (refW) {
+                                            let current = {};
+                                            try { current = JSON.parse(refW.value || "{}"); } catch(_) {}
+                                            current[rb.slot] = name;
+                                            refW.value = JSON.stringify(current);
+                                            safeSetDirty(n);
+                                        }
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                });
+            }
 
             // Dynamic audio shift coupling: maintain 4:1 video:audio shift scale
             setTimeout(() => {
@@ -461,7 +605,7 @@ app.registerExtension({
             return r;
         };
 
-        // Full-Width Vector Canvas Drawing (Placed below connection bay)
+        // Full-Width Vector Canvas Drawing (Studio Workspace)
         const origOnDrawForeground = nodeType.prototype.onDrawForeground;
         nodeType.prototype.onDrawForeground = function(ctx, canvas) {
             const r = origOnDrawForeground ? origOnDrawForeground.apply(this, arguments) : undefined;
@@ -558,8 +702,86 @@ app.registerExtension({
             ctx.fillStyle = "#94a3b8";
             ctx.fillText("[ PREV | NEXT ]", margin + fullW - 8, m.presetY + m.presetH / 2);
 
-            // 4. Shot Sequence Timeline Ribbon (shown on core/directing/all)
+            // 4. Style & Character Reference Tray (shown on core/directing/all)
             if (node._h3_show_timeline) {
+                node._refBoxes = [];
+                const trayY = m.refTrayY;
+                const trayH = m.refTrayH;
+
+                ctx.fillStyle = "#111117";
+                ctx.beginPath();
+                ctx.roundRect(margin, trayY, fullW, trayH, 4);
+                ctx.fill();
+                ctx.strokeStyle = "#242436";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = "#8b78ff";
+                ctx.font = "bold 9px sans-serif";
+                ctx.textAlign = "left";
+                ctx.textBaseline = "top";
+                ctx.fillText("STYLE & CHARACTER REFERENCES [ Drop image or click to load ]", margin + 8, trayY + 4);
+
+                const refW_widget = node.widgets?.find(w => w.name === "ref_paths");
+                let refData = {};
+                try { refData = JSON.parse(refW_widget?.value || "{}"); } catch(_) {}
+
+                const slotW = (fullW - 20) / 4;
+                const slotH = 34;
+                const slotY = trayY + 18;
+
+                for (let s = 1; s <= 4; s++) {
+                    const sx = margin + 4 + (s - 1) * slotW;
+                    const sw = slotW - 4;
+                    const fn = refData[String(s)] || "";
+
+                    node._refBoxes.push({
+                        slot: String(s),
+                        x: sx,
+                        y: slotY,
+                        w: sw,
+                        h: slotH,
+                        filename: fn
+                    });
+
+                    ctx.fillStyle = fn ? "#192233" : "#171720";
+                    ctx.beginPath();
+                    ctx.roundRect(sx, slotY, sw, slotH, 3);
+                    ctx.fill();
+                    ctx.strokeStyle = fn ? "#60a5fa" : "#303044";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+
+                    if (fn) {
+                        const img = getCachedImage(fn);
+                        drawLetterboxedThumbnail(ctx, img, sx + 2, slotY + 2, 28, slotH - 4);
+
+                        ctx.fillStyle = "#93c5fd";
+                        ctx.font = "bold 8px sans-serif";
+                        ctx.textAlign = "left";
+                        ctx.textBaseline = "top";
+                        ctx.fillText(`<Picture ${s}>`, sx + 34, slotY + 4);
+
+                        ctx.fillStyle = "#94a3b8";
+                        ctx.font = "8px sans-serif";
+                        const shortName = fn.length > 10 ? fn.substring(0, 8) + ".." : fn;
+                        ctx.fillText(shortName, sx + 34, slotY + 16);
+
+                        // Clear [x] button
+                        ctx.fillStyle = "#ef4444";
+                        ctx.font = "bold 9px sans-serif";
+                        ctx.textAlign = "right";
+                        ctx.fillText("x", sx + sw - 4, slotY + 4);
+                    } else {
+                        ctx.fillStyle = "#64748b";
+                        ctx.font = "bold 8px sans-serif";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText(`+ REF ${s} (Pic ${s})`, sx + sw / 2, slotY + slotH / 2);
+                    }
+                }
+
+                // 5. Shot Sequence Timeline Ribbon
                 const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
                 const promptText = promptW ? promptW.value : "";
                 const shotSecW = node.widgets ? node.widgets.find(w => w.name === "shot_seconds") : null;
@@ -590,28 +812,32 @@ app.registerExtension({
                 ctx.textBaseline = "top";
                 const titleText = shots.length > 0
                     ? `SHOT TIMELINE [ ${shots.length} Shots, ${totalSec.toFixed(1)}s / ${totalFrames}f ]`
-                    : "SHOT TIMELINE [ Type beats in prompt to visualize shots ]";
+                    : "SHOT TIMELINE [ Type beats in prompt or click + ADD BEAT ]";
                 ctx.fillText(titleText, margin + 8, m.ribbonY + 6);
 
+                // [+ ADD BEAT] Button on right
+                ctx.fillStyle = "#22c55e";
+                ctx.font = "bold 9px sans-serif";
                 ctx.textAlign = "right";
-                ctx.fillStyle = "#64748b";
-                ctx.font = "9px sans-serif";
-                ctx.fillText("[ Drag to Reorder | +/- Duration ]", margin + fullW - 8, m.ribbonY + 6);
+                ctx.fillText("[ + ADD BEAT ]", margin + fullW - 8, m.ribbonY + 6);
 
                 // Track area
-                const trackY = m.ribbonY + 20;
-                const trackH = 44;
+                const trackY = m.ribbonY + 18;
+                const trackH = 52;
                 const trackW = fullW - 12;
                 const trackX = margin + 6;
+
+                const ffW = node.widgets?.find(w => w.name === "first_frame_path");
+                const firstFrameFile = ffW?.value || "";
 
                 if (shots.length === 0) {
                     ctx.fillStyle = "#333348";
                     ctx.font = "italic 10px sans-serif";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle";
-                    ctx.fillText("No paragraphs detected. Type Paragraph 1 (Anchor) and Paragraphs 2..N (Beats)", trackX + trackW / 2, trackY + trackH / 2);
+                    ctx.fillText("No shots detected. Click [+ ADD BEAT] to scaffold your first scene shot.", trackX + trackW / 2, trackY + trackH / 2);
                 } else {
-                    const itemW = Math.max(80, trackW / shots.length);
+                    const itemW = Math.max(90, trackW / shots.length);
                     for (let i = 0; i < shots.length; i++) {
                         const shot = shots[i];
                         const sx = trackX + i * itemW;
@@ -650,36 +876,55 @@ app.registerExtension({
                         ctx.lineWidth = isBeingDragged ? 1.8 : 0.9;
                         ctx.stroke();
 
+                        // S1 Anchor First Frame Thumbnail
+                        if (isAnchor && firstFrameFile) {
+                            const ffImg = getCachedImage(firstFrameFile);
+                            drawLetterboxedThumbnail(ctx, ffImg, sx + 2, trackY + 2, 28, trackH - 4);
+
+                            // Delete starting frame [x] button
+                            ctx.fillStyle = "#ef4444";
+                            ctx.font = "bold 9px sans-serif";
+                            ctx.textAlign = "right";
+                            ctx.textBaseline = "top";
+                            ctx.fillText("x", sx + sw - 4, trackY + 3);
+                        }
+
+                        const textOffset = (isAnchor && firstFrameFile) ? 32 : 4;
+
                         // Label
                         ctx.textAlign = "left";
                         ctx.textBaseline = "top";
                         ctx.font = "bold 9px sans-serif";
                         ctx.fillStyle = isAnchor ? "#c4b5fd" : (shot.hasDialogue ? "#a7f3d0" : "#93c5fd");
-                        const tag = isAnchor ? "ANCHOR" : (shot.hasDialogue ? "DIA" : (shot.hasMotion ? "ACT" : "BEAT"));
-                        ctx.fillText(`S${i + 1}: ${tag}`, sx + 4, trackY + 3);
+                        const tag = isAnchor ? (firstFrameFile ? "S1: I2V" : "S1: ANCHOR") : (shot.hasDialogue ? `S${i + 1}: DIA` : (shot.hasMotion ? `S${i + 1}: ACT` : `S${i + 1}: BEAT`));
+                        ctx.fillText(tag, sx + textOffset, trackY + 3);
 
-                        // Drag Grip Icon
+                        // Drag Grip Icon & Delete Shot [x]
                         if (!isAnchor) {
                             ctx.fillStyle = "#64748b";
                             ctx.font = "8px sans-serif";
                             ctx.textAlign = "right";
-                            ctx.fillText("::", sx + sw - 4, trackY + 3);
+                            ctx.fillText("::", sx + sw - 14, trackY + 3);
+
+                            ctx.fillStyle = "#ef4444";
+                            ctx.font = "bold 8px sans-serif";
+                            ctx.fillText("x", sx + sw - 4, trackY + 3);
                         }
 
                         // Duration Text & +/- Buttons
                         ctx.textAlign = "left";
                         ctx.font = "9px sans-serif";
                         ctx.fillStyle = "#e2e8f0";
-                        ctx.fillText(`${shot.seconds}s (${shot.frames}f)`, sx + 4, trackY + 16);
+                        ctx.fillText(`${shot.seconds}s (${shot.frames}f)`, sx + textOffset, trackY + 16);
 
-                        const btnY = trackY + 28;
-                        const btnH = 13;
+                        const btnY = trackY + 32;
+                        const btnH = 14;
                         const btnW = 14;
 
                         // Minus Button [-]
                         ctx.fillStyle = "#1e293b";
                         ctx.beginPath();
-                        ctx.roundRect(sx + 4, btnY, btnW, btnH, 2);
+                        ctx.roundRect(sx + textOffset, btnY, btnW, btnH, 2);
                         ctx.fill();
                         ctx.strokeStyle = "#475569";
                         ctx.lineWidth = 0.8;
@@ -689,35 +934,35 @@ app.registerExtension({
                         ctx.font = "bold 9px sans-serif";
                         ctx.textAlign = "center";
                         ctx.textBaseline = "middle";
-                        ctx.fillText("-", sx + 4 + btnW / 2, btnY + btnH / 2);
+                        ctx.fillText("-", sx + textOffset + btnW / 2, btnY + btnH / 2);
 
                         // Plus Button [+]
                         ctx.fillStyle = "#1e293b";
                         ctx.beginPath();
-                        ctx.roundRect(sx + 20, btnY, btnW, btnH, 2);
+                        ctx.roundRect(sx + textOffset + 16, btnY, btnW, btnH, 2);
                         ctx.fill();
                         ctx.stroke();
 
                         ctx.fillStyle = "#94a3b8";
-                        ctx.fillText("+", sx + 20 + btnW / 2, btnY + btnH / 2);
+                        ctx.fillText("+", sx + textOffset + 16 + btnW / 2, btnY + btnH / 2);
 
                         // Snippet text
                         ctx.textAlign = "left";
                         ctx.font = "8px sans-serif";
                         ctx.fillStyle = "#64748b";
-                        const snippet = shot.snippet.length > 10 ? shot.snippet.substring(0, 10) + ".." : shot.snippet;
-                        ctx.fillText(snippet, sx + 38, btnY + btnH / 2);
+                        const snippet = shot.snippet.length > 8 ? shot.snippet.substring(0, 8) + ".." : shot.snippet;
+                        ctx.fillText(snippet, sx + textOffset + 34, btnY + btnH / 2);
                     }
                 }
 
                 // Status Footer
-                const footY = m.ribbonY + 68;
+                const footY = m.ribbonY + 72;
                 ctx.fillStyle = "#64748b";
                 ctx.font = "9px sans-serif";
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 const coupledAudio = parseFloat((shiftV / 4.0).toFixed(2));
-                ctx.fillText(`Audio: ${totalAudioLatents} latents @ 40Hz (Coupled: ${coupledAudio}) | 24 FPS`, margin + 8, footY + 7);
+                ctx.fillText(`Audio: ${totalAudioLatents} latents @ 40Hz (Coupled shift: ${coupledAudio}) | 24 FPS`, margin + 8, footY + 8);
             }
 
             ctx.restore();
@@ -766,15 +1011,11 @@ app.registerExtension({
                 let idx = PRESETS.indexOf(current);
                 if (idx === -1) idx = 0;
 
-                // Check if PREV clicked
                 if (clickX >= margin + fullW - 60) {
-                    // NEXT
                     idx = (idx + 1) % PRESETS.length;
                 } else if (clickX >= margin + fullW - 120) {
-                    // PREV
                     idx = (idx - 1 + PRESETS.length) % PRESETS.length;
                 } else {
-                    // Clicked on name -> cycle next
                     idx = (idx + 1) % PRESETS.length;
                 }
 
@@ -782,28 +1023,90 @@ app.registerExtension({
                 return true;
             }
 
-            // 4. Shot Sequence Timeline Interaction
-            if (node._h3_show_timeline && clickY >= (m.ribbonY + 20) && clickY <= (m.ribbonY + 64) && clickX >= margin && clickX <= margin + fullW) {
+            // 4. Reference Tray Clicks (Drop, Browse, or Clear)
+            if (node._h3_show_timeline && clickY >= m.refTrayY && clickY <= (m.refTrayY + m.refTrayH)) {
+                for (let rb of (node._refBoxes || [])) {
+                    if (clickX >= rb.x && clickX <= rb.x + rb.w && clickY >= rb.y && clickY <= rb.y + rb.h) {
+                        const refW = node.widgets?.find(w => w.name === "ref_paths");
+                        let current = {};
+                        try { current = JSON.parse(refW?.value || "{}"); } catch(_) {}
+
+                        // Check if click on [x] to clear
+                        if (rb.filename && clickX >= rb.x + rb.w - 14 && clickY <= rb.y + 14) {
+                            delete current[rb.slot];
+                            if (refW) refW.value = JSON.stringify(current);
+                            safeSetDirty(node);
+                            return true;
+                        }
+
+                        // Otherwise browse for file
+                        promptForLocalImage((filename) => {
+                            current[rb.slot] = filename;
+                            if (refW) refW.value = JSON.stringify(current);
+                            safeSetDirty(node);
+                        });
+                        return true;
+                    }
+                }
+            }
+
+            // 5. Shot Sequence Timeline Interaction
+            if (node._h3_show_timeline && clickY >= m.ribbonY && clickY <= (m.ribbonY + m.ribbonH) && clickX >= margin && clickX <= margin + fullW) {
                 const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
+
+                // Check if [+ ADD BEAT] clicked
+                if (clickY <= m.ribbonY + 16 && clickX >= margin + fullW - 70) {
+                    addNewBeat(promptW);
+                    safeSetDirty(node);
+                    return true;
+                }
+
+                // Check shot hit
                 const hitBox = (node._shotBoxes || []).find(b =>
                     clickX >= b.x && clickX <= (b.x + b.w) && clickY >= b.y && clickY <= (b.y + b.h)
                 );
 
                 if (hitBox && promptW) {
                     const i = hitBox.index;
-                    const btnY = hitBox.y + 28;
-                    const btnH = 13;
+                    const ffW = node.widgets?.find(w => w.name === "first_frame_path");
+
+                    // S1 clear starting frame [x]
+                    if (hitBox.isAnchor && ffW?.value && clickX >= hitBox.x + hitBox.w - 14 && clickY <= hitBox.y + 14) {
+                        ffW.value = "";
+                        safeSetDirty(node);
+                        return true;
+                    }
+
+                    // S1 browse for starting frame if clicked on thumbnail area
+                    if (hitBox.isAnchor && clickX <= hitBox.x + 30) {
+                        promptForLocalImage((filename) => {
+                            if (ffW) ffW.value = filename;
+                            safeSetDirty(node);
+                        });
+                        return true;
+                    }
+
+                    // Delete scene beat [x]
+                    if (!hitBox.isAnchor && clickX >= hitBox.x + hitBox.w - 12 && clickY <= hitBox.y + 14) {
+                        deleteBeat(promptW, i);
+                        safeSetDirty(node);
+                        return true;
+                    }
+
+                    const offset = (hitBox.isAnchor && ffW?.value) ? 32 : 4;
+                    const btnY = hitBox.y + 32;
+                    const btnH = 14;
                     const btnW = 14;
 
                     // Minus Button [-]
-                    if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + 4 && clickX <= hitBox.x + 4 + btnW) {
+                    if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + offset && clickX <= hitBox.x + offset + btnW) {
                         updatePromptShotDuration(promptW, i, -0.5);
                         safeSetDirty(node);
                         return true;
                     }
 
                     // Plus Button [+]
-                    if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + 20 && clickX <= hitBox.x + 20 + btnW) {
+                    if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + offset + 16 && clickX <= hitBox.x + offset + 16 + btnW) {
                         updatePromptShotDuration(promptW, i, +0.5);
                         safeSetDirty(node);
                         return true;

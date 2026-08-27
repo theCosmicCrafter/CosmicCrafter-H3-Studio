@@ -262,6 +262,7 @@ ADDED_WIDGETS = (
     "motion_guard", "contact_guard",
     "auto_soundscape", "allow_nonspeech_vocals",
     "config_preset",
+    "first_frame_path", "ref_paths",
 )
 
 NL = "\n"
@@ -5151,6 +5152,48 @@ def _evict_all_but(keep_model):
 
 
 
+
+def _load_image_from_input_storage(filename):
+    if not filename or not str(filename).strip():
+        return None
+    filename = str(filename).strip()
+    filepath = None
+    try:
+        import folder_paths
+        filepath = folder_paths.get_annotated_filepath(filename)
+    except Exception:
+        pass
+    if not filepath or not os.path.exists(filepath):
+        try:
+            import folder_paths
+            input_dir = folder_paths.get_input_directory()
+            filepath = os.path.join(input_dir, filename)
+        except Exception:
+            filepath = filename
+    if not filepath or not os.path.exists(filepath):
+        return None
+    try:
+        from PIL import Image, ImageOps, ImageSequence
+        import numpy as np
+        import torch
+        img = Image.open(filepath)
+        output_images = []
+        for i in ImageSequence.Iterator(img):
+            i = ImageOps.exif_transpose(i)
+            if i.mode == 'I':
+                i = i.point(lambda i: i * (1 / 255))
+            image = i.convert("RGB")
+            image = np.array(image).astype(np.float32) / 255.0
+            image = torch.from_numpy(image)[None,]
+            output_images.append(image)
+        if len(output_images) > 1:
+            return torch.cat(output_images, dim=0)
+        return output_images[0] if output_images else None
+    except Exception as e:
+        print(f"[MiniMax-H3] Could not load dropped image '{filename}': {e}")
+        return None
+
+
 class H3LongVideos:
     CATEGORY = "sampling/minimax"
     FUNCTION = "run"
@@ -5240,6 +5283,8 @@ class H3LongVideos:
             "optional": {
                 "first_frame": ("IMAGE", {"tooltip": "Optional initial frame for Image-to-Video (I2V)."}),
                 "ref_images": ("IMAGE", {"tooltip": "Optional character reference images for Ref2VA (accepts a single image or batch of up to 4 images)."}),
+                "first_frame_path": ("STRING", {"default": "", "multiline": False}),
+                "ref_paths": ("STRING", {"default": "", "multiline": False}),
                 "plan_only": ("BOOLEAN", {"default": False,
                     "tooltip": "Preview the shot split WITHOUT rendering. Uses THIS node's own settings (no "
                                "second node, no duplicate entry): returns the plan in 'info' and the "
@@ -5743,9 +5788,10 @@ class H3LongVideos:
             intro_text="", intro_position="center", intro_seconds=3.0, intro_fade=0.6,
             intro_size=9.0, overlay_font="arial.ttf", overlay_stroke=0,
             ref_image_1=None, ref_image_2=None, ref_image_3=None, ref_image_4=None,
+            first_frame_path="", ref_paths="", ref_images=None,
             ref_mode="where tagged", ref_image_size="match", ref_noise_aug=0.999,
             config_preset="Cinematic Master (25 Steps, 1.00MP Native)",
-            graph=None, node_id=None):
+            graph=None, node_id=None, **kwargs):
 
         # FIRST: detect a checkpoint swap since the previous execution and hard-flush.
         # A stale resident model from a different checkpoint would otherwise poison
@@ -6202,6 +6248,36 @@ class H3LongVideos:
         for r in (ref_image_1, ref_image_2, ref_image_3, ref_image_4):
             if r is not None:
                 ref_list.append(r)
+
+        # Ingest dropped first_frame image if no wire connected
+        if handoff is None and first_frame_path and str(first_frame_path).strip():
+            handoff = _load_image_from_input_storage(str(first_frame_path).strip())
+
+        # Ingest dropped reference images if no wire connected
+        if not ref_list and ref_paths and str(ref_paths).strip():
+            try:
+                import json
+                parsed = json.loads(str(ref_paths).strip())
+                if isinstance(parsed, dict):
+                    for k in sorted(parsed.keys()):
+                        fn = parsed[k]
+                        if fn:
+                            loaded = _load_image_from_input_storage(fn)
+                            if loaded is not None:
+                                ref_list.append(loaded)
+                elif isinstance(parsed, list):
+                    for fn in parsed:
+                        if fn:
+                            loaded = _load_image_from_input_storage(fn)
+                            if loaded is not None:
+                                ref_list.append(loaded)
+            except Exception:
+                for part in str(ref_paths).split(","):
+                    p = part.strip()
+                    if p:
+                        loaded = _load_image_from_input_storage(p)
+                        if loaded is not None:
+                            ref_list.append(loaded)
         ref_shots = []                     # which shots ended up ref-conditioned
         ref_missing = []                   # <Picture N> tags naming an unconnected slot
         ref_carried = []                   # tagged shots that kept continuity as an extra ref
