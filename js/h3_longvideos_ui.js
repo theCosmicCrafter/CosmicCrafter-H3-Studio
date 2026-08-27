@@ -59,7 +59,11 @@ const WIDGET_CATEGORIES = {
     handoff_offset: "directing",
     vary_seed_per_shot: "directing",
 
-    auto_soundscape: "audio",
+    custom_audio_file: "audio",
+        custom_audio_mode: "audio",
+        custom_audio_volume: "audio",
+        custom_audio_offset: "audio",
+        auto_soundscape: "audio",
     global_soundscape: "audio",
     non_diegetic_music: "audio",
     auto_silence_nonspeech: "audio",
@@ -304,12 +308,13 @@ function getHeaderMetrics(node) {
     const presetH = 24;
 
     const refTrayY = presetY + presetH + 6;
-    const refTrayH = 58;
+    const refTrayH = Math.max(45, (node?.properties?._refTrayHeight || 58));
 
     const ribbonY = refTrayY + refTrayH + 6;
     const hasSelectedShot = (node?._selectedShotIndex !== undefined && node?._selectedShotIndex >= 0);
     const inspectorH = hasSelectedShot ? 50 : 0;
-    const ribbonH = 88 + inspectorH;
+    const baseRibbonH = Math.max(65, (node?.properties?._timelineHeight || 88));
+    const ribbonH = baseRibbonH + inspectorH;
 
     const totalHeaderBottom = node?._h3_show_timeline ? (ribbonY + ribbonH + 8) : (presetY + presetH + 8);
 
@@ -661,6 +666,49 @@ function applyTabFilter(node, activeTab) {
 
     safeSetDirty(node);
 }
+
+
+        const origNodeMouseMove = nodeType.prototype.onMouseMove;
+        nodeType.prototype.onMouseMove = function(event, pos, canvas) {
+            const node = this;
+            if (node._isDraggingTimeline) {
+                const delta = pos[1] - node._dragStartY;
+                const newH = Math.max(65, Math.min(450, Math.round(node._dragStartH + delta)));
+                node.properties = node.properties || {};
+                node.properties._timelineHeight = newH;
+                const m = getHeaderMetrics(node);
+                if (node.size[1] < m.totalHeaderBottom + 60) {
+                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
+                }
+                safeSetDirty(node);
+                return true;
+            }
+            if (node._isDraggingRefTray) {
+                const delta = pos[1] - node._dragStartY;
+                const newH = Math.max(45, Math.min(300, Math.round(node._dragStartH + delta)));
+                node.properties = node.properties || {};
+                node.properties._refTrayHeight = newH;
+                const m = getHeaderMetrics(node);
+                if (node.size[1] < m.totalHeaderBottom + 60) {
+                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
+                }
+                safeSetDirty(node);
+                return true;
+            }
+            if (origNodeMouseMove) return origNodeMouseMove.apply(this, arguments);
+        };
+
+        const origNodeMouseUp = nodeType.prototype.onMouseUp;
+        nodeType.prototype.onMouseUp = function(event, pos, canvas) {
+            const node = this;
+            if (node._isDraggingTimeline || node._isDraggingRefTray) {
+                node._isDraggingTimeline = false;
+                node._isDraggingRefTray = false;
+                safeSetDirty(node);
+                return true;
+            }
+            if (origNodeMouseUp) return origNodeMouseUp.apply(this, arguments);
+        };
 
 app.registerExtension({
     name: "MiniMaxH3.LongVideosUI",
@@ -1057,7 +1105,8 @@ app.registerExtension({
                 ctx.fillText("[ + ADD BEAT ]", margin + fullW - 8, m.ribbonY + 6);
 
                 const trackY = m.ribbonY + 18;
-                const trackH = 52;
+                const baseRibbonH = Math.max(65, (node?.properties?._timelineHeight || 88));
+                const trackH = Math.max(52, baseRibbonH - 26);
                 const trackW = fullW - 12;
                 const trackX = margin + 6;
 
@@ -1178,20 +1227,58 @@ app.registerExtension({
                         ctx.fillText("+", sx + textOffset + 16 + btnW / 2, btnY + btnH / 2);
 
                         ctx.textAlign = "left";
-                        ctx.font = "8px sans-serif";
-                        ctx.fillStyle = "#64748b";
-                        const snippet = shot.snippet.length > 8 ? shot.snippet.substring(0, 8) + ".." : shot.snippet;
-                        ctx.fillText(snippet, sx + textOffset + 34, btnY + btnH / 2);
+                        if (trackH <= 62) {
+                            ctx.font = "8px sans-serif";
+                            ctx.fillStyle = "#64748b";
+                            const snippet = shot.snippet.length > 8 ? shot.snippet.substring(0, 8) + ".." : shot.snippet;
+                            ctx.fillText(snippet, sx + textOffset + 34, btnY + btnH / 2);
+                        } else {
+                            ctx.fillStyle = isInspected ? "#f1f5f9" : "#cbd5e1";
+                            ctx.font = "italic 8.5px sans-serif";
+                            ctx.textAlign = "left";
+                            ctx.textBaseline = "top";
+                            const availH = trackH - 52;
+                            const maxLines = Math.max(1, Math.min(8, Math.floor(availH / 11)));
+                            const maxChars = Math.max(12, Math.floor((sw - 10) / 5.2));
+                            const words = (shot.snippet || "").split(/\s+/);
+                            let curLine = "";
+                            let lineNum = 0;
+                            for (let w of words) {
+                                if (lineNum >= maxLines) break;
+                                if ((curLine + " " + w).length > maxChars && curLine) {
+                                    ctx.fillText((lineNum === 0 ? `"` : "") + curLine, sx + 5, trackY + 50 + lineNum * 11);
+                                    lineNum++;
+                                    curLine = w;
+                                } else {
+                                    curLine = curLine ? curLine + " " + w : w;
+                                }
+                            }
+                            if (curLine && lineNum < maxLines) {
+                                ctx.fillText((lineNum === 0 ? `"` : "") + curLine + `"`, sx + 5, trackY + 50 + lineNum * 11);
+                            }
+                        }
                     }
                 }
 
-                const footY = m.ribbonY + 72;
+                const footY = m.ribbonY + m.ribbonH - 18;
                 ctx.fillStyle = "#64748b";
                 ctx.font = "9px sans-serif";
                 ctx.textAlign = "left";
                 ctx.textBaseline = "middle";
                 const coupledAudio = parseFloat((shiftV / 4.0).toFixed(2));
                 ctx.fillText(`Audio: ${totalAudioLatents} latents @ 40Hz (Coupled shift: ${coupledAudio}) | 24 FPS`, margin + 8, footY + 8);
+
+                // Drag handle at bottom of Timeline Ribbon
+                const ribbonHandleY = m.ribbonY + m.ribbonH - 4;
+                node._timelineResizeHandle = { x: margin + fullW / 2 - 35, y: ribbonHandleY - 5, w: 70, h: 10 };
+                ctx.fillStyle = "#0284c7";
+                ctx.beginPath(); ctx.roundRect(margin + fullW / 2 - 30, ribbonHandleY, 60, 3, 1.5); ctx.fill();
+
+                // Drag handle at bottom of Reference Tray
+                const refHandleY = m.refTrayY + m.refTrayH - 4;
+                node._refTrayResizeHandle = { x: margin + fullW / 2 - 30, y: refHandleY - 5, w: 60, h: 10 };
+                ctx.fillStyle = "#475569";
+                ctx.beginPath(); ctx.roundRect(margin + fullW / 2 - 25, refHandleY, 50, 3, 1.5); ctx.fill();
             }
 
             ctx.restore();
@@ -1199,11 +1286,30 @@ app.registerExtension({
         };
 
         // Full-Width Hit-Testing & Mouse Interaction
-        const origNodeMouseDown = nodeType.prototype.onMouseDown;
+const origNodeMouseDown = nodeType.prototype.onMouseDown;
         nodeType.prototype.onMouseDown = function(event, pos, canvas) {
             const node = this;
+            node.properties = node.properties || {};
             const clickX = pos[0];
             const clickY = pos[1];
+
+            // Check Ref Tray Resize Handle
+            if (node._refTrayResizeHandle && clickX >= node._refTrayResizeHandle.x && clickX <= node._refTrayResizeHandle.x + node._refTrayResizeHandle.w &&
+                clickY >= node._refTrayResizeHandle.y && clickY <= node._refTrayResizeHandle.y + node._refTrayResizeHandle.h) {
+                node._isDraggingRefTray = true;
+                node._dragStartY = clickY;
+                node._dragStartH = node.properties._refTrayHeight || 58;
+                return true;
+            }
+
+            // Check Timeline Resize Handle
+            if (node._timelineResizeHandle && clickX >= node._timelineResizeHandle.x && clickX <= node._timelineResizeHandle.x + node._timelineResizeHandle.w &&
+                clickY >= node._timelineResizeHandle.y && clickY <= node._timelineResizeHandle.y + node._timelineResizeHandle.h) {
+                node._isDraggingTimeline = true;
+                node._dragStartY = clickY;
+                node._dragStartH = node.properties._timelineHeight || 88;
+                return true;
+            }
             const margin = 12;
             const fullW = node.size[0] - margin * 2;
             const m = getHeaderMetrics(node);

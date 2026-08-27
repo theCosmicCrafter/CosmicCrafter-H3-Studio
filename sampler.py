@@ -339,6 +339,7 @@ ADDED_WIDGETS = (
     "auto_soundscape", "allow_nonspeech_vocals",
     "config_preset",
     "first_frame_path", "ref_paths",
+    "custom_audio_file", "custom_audio_mode", "custom_audio_volume", "custom_audio_offset",
 )
 
 NL = "\n"
@@ -5341,6 +5342,109 @@ def extract_and_apply_prompt_loras(model, clip, prompt):
 
 
 
+
+def audio_files_list():
+    """List available audio files in ComfyUI input directory."""
+    try:
+        input_dir = folder_paths.get_input_directory()
+        files = folder_paths.filter_files_content_types(os.listdir(input_dir), ["audio", "video"])
+        return ["none"] + sorted(files)
+    except Exception:
+        return ["none"]
+
+
+def apply_custom_audio(generated_audio, sr, total_frames, fps,
+                       custom_audio_noodle=None,
+                       custom_audio_file="none",
+                       custom_audio_mode="off",
+                       custom_audio_volume=1.0,
+                       custom_audio_offset=0.0,
+                       spk_flags=None):
+    """Integrate external or file-based custom audio into the video soundtrack."""
+    if custom_audio_mode == "off":
+        return generated_audio, ""
+
+    c_wav = None
+    c_sr = sr
+
+    # 1. From wired noodle
+    if custom_audio_noodle is not None and isinstance(custom_audio_noodle, dict):
+        c_wav = custom_audio_noodle.get("waveform")
+        c_sr = custom_audio_noodle.get("sample_rate", sr)
+
+    # 2. From file upload/picker
+    elif custom_audio_file and custom_audio_file != "none":
+        try:
+            import torchaudio
+            audio_path = folder_paths.get_annotated_filepath(custom_audio_file)
+            if not os.path.exists(audio_path):
+                audio_path = os.path.join(folder_paths.get_input_directory(), custom_audio_file)
+            if os.path.exists(audio_path):
+                c_wav, c_sr = torchaudio.load(audio_path)
+        except Exception as e:
+            return generated_audio, f"custom audio load error ({e})"
+
+    if c_wav is None:
+        return generated_audio, ""
+
+    # Ensure shape is [channels, samples]
+    if c_wav.dim() == 3:
+        c_wav = c_wav.squeeze(0)
+    if c_wav.shape[0] == 1:
+        c_wav = c_wav.repeat(2, 1)
+    elif c_wav.shape[0] > 2:
+        c_wav = c_wav[:2]
+
+    # Resample if needed
+    if c_sr != sr:
+        try:
+            import torchaudio
+            resampler = torchaudio.transforms.Resample(orig_freq=c_sr, new_freq=sr)
+            c_wav = resampler(c_wav)
+        except Exception:
+            pass
+
+    # Apply offset
+    if custom_audio_offset > 0.0:
+        offset_samples = int(custom_audio_offset * sr)
+        if offset_samples < c_wav.shape[-1]:
+            c_wav = c_wav[:, offset_samples:]
+
+    # Target duration: match exact video length
+    target_samples = generated_audio.shape[-1]
+    if c_wav.shape[-1] < target_samples:
+        repeats = (target_samples // max(1, c_wav.shape[-1])) + 1
+        c_wav = c_wav.repeat(1, repeats)[:, :target_samples]
+    else:
+        c_wav = c_wav[:, :target_samples]
+
+    c_wav = c_wav.to(generated_audio.device, dtype=generated_audio.dtype)
+    vol = float(custom_audio_volume)
+
+    if custom_audio_mode == "replace":
+        final_audio = torch.clamp(c_wav * vol, -1.0, 1.0)
+        note = f"custom audio replaced AI audio (vol {vol:g})"
+    elif custom_audio_mode == "mix":
+        final_audio = torch.clamp(generated_audio + (c_wav * vol), -1.0, 1.0)
+        note = f"custom audio mixed with AI audio (vol {vol:g})"
+    elif custom_audio_mode == "background_bed":
+        bed = c_wav * vol
+        if spk_flags and len(spk_flags) > 0:
+            shot_samples = target_samples // len(spk_flags)
+            for idx, is_spk in enumerate(spk_flags):
+                st = idx * shot_samples
+                en = min(target_samples, (idx + 1) * shot_samples)
+                if is_spk:
+                    bed[:, st:en] *= 0.20
+        final_audio = torch.clamp(generated_audio + bed, -1.0, 1.0)
+        note = f"custom audio layered as background bed with auto-ducking (vol {vol:g})"
+    else:
+        final_audio = generated_audio
+        note = ""
+
+    return final_audio, note
+
+
 class H3LongVideos:
     CATEGORY = "sampling/minimax"
     FUNCTION = "run"
@@ -5428,6 +5532,7 @@ class H3LongVideos:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
             },
             "optional": {
+                "custom_audio": ("AUDIO", {"tooltip": "Optional external audio input noodle (if piped from an external audio node). Overrides custom_audio_file."}),
                 "first_frame_path": ("STRING", {"default": "", "multiline": False}),
                 "ref_paths": ("STRING", {"default": "", "multiline": False}),
                 "plan_only": ("BOOLEAN", {"default": False,
@@ -6648,6 +6753,13 @@ class H3LongVideos:
 
         all_frames = torch.cat(video_chunks, dim=0)
         all_audio = torch.cat(audio_chunks, dim=-1)
+        all_audio, custom_audio_note = apply_custom_audio(all_audio, sr, all_frames.shape[0], fps,
+                                                         custom_audio_noodle=custom_audio,
+                                                         custom_audio_file=custom_audio_file,
+                                                         custom_audio_mode=custom_audio_mode,
+                                                         custom_audio_volume=custom_audio_volume,
+                                                         custom_audio_offset=custom_audio_offset,
+                                                         spk_flags=spk)
 
         # --- the `latent` output ------------------------------------------------
         # The sampled latents, joined on the temporal axis. This is NOT the latent
@@ -6789,7 +6901,8 @@ class H3LongVideos:
                 + (f"{ref_note}." if ref_note else "")
                 + (f" {fps_note}." if fps_note else "")
                 + (f" {swap_note}." if swap_note else "") + \
-                (f" {prompt_lora_note}." if prompt_lora_note else "")
+                (f" {prompt_lora_note}." if prompt_lora_note else "") + \
+                (f" {custom_audio_note}." if custom_audio_note else "")
                 + (f" free VRAM/shot: {vram_trace}." if len(vram_trace) > 1 else "")
                 + (f" {accel_note}." if accel_note else "")
                 + (f" {ms_note}." if ms_note else "")
