@@ -307,7 +307,9 @@ function getHeaderMetrics(node) {
     const refTrayH = 58;
 
     const ribbonY = refTrayY + refTrayH + 6;
-    const ribbonH = 88;
+    const hasSelectedShot = (node?._selectedShotIndex !== undefined && node?._selectedShotIndex >= 0);
+    const inspectorH = hasSelectedShot ? 50 : 0;
+    const ribbonH = 88 + inspectorH;
 
     const totalHeaderBottom = node?._h3_show_timeline ? (ribbonY + ribbonH + 8) : (presetY + presetH + 8);
 
@@ -321,6 +323,20 @@ function getHeaderMetrics(node) {
         ribbonY, ribbonH,
         totalHeaderBottom
     };
+}
+
+
+function updateShotBody(promptW, shotIndex, newBody) {
+    if (!promptW || typeof promptW.value !== "string") return;
+    const { anchor, shots } = parsePromptBeats(promptW.value);
+    if (shotIndex < 0 || shotIndex >= shots.length) return;
+    shots[shotIndex].body = newBody;
+    const newParas = [];
+    if (anchor) newParas.push(anchor);
+    for (let s of shots) {
+        newParas.push(`seconds: ${s.seconds.toFixed(1)}\n${s.body}`);
+    }
+    promptW.value = newParas.join("\n\n");
 }
 
 function parsePromptBeats(promptText, defaultSeconds = 5.0) {
@@ -1002,10 +1018,12 @@ app.registerExtension({
                             ctx.strokeStyle = "#60a5fa";
                         }
 
+                        const isSelected = (node._selectedShotIndex === i);
                         ctx.beginPath();
                         ctx.roundRect(sx, trackY, sw, trackH, 3);
                         ctx.fill();
-                        ctx.lineWidth = isBeingDragged ? 1.8 : 0.9;
+                        ctx.strokeStyle = isSelected ? "#38bdf8" : ctx.strokeStyle;
+                        ctx.lineWidth = (isSelected || isBeingDragged) ? 2.0 : 0.9;
                         ctx.stroke();
 
                         if (isAnchor && firstFrameFile) {
@@ -1206,6 +1224,29 @@ app.registerExtension({
                 if (clickY <= m.ribbonY + 16 && clickX >= margin + fullW - 70) {
                     addNewBeat(promptW);
                     safeSetDirty(node);
+                    return true;
+                }
+
+                // Check Beat Inspector clicks
+                if (node._inspectorCloseBtn && clickX >= node._inspectorCloseBtn.x && clickX <= node._inspectorCloseBtn.x + node._inspectorCloseBtn.w &&
+                    clickY >= node._inspectorCloseBtn.y && clickY <= node._inspectorCloseBtn.y + node._inspectorCloseBtn.h) {
+                    node._selectedShotIndex = undefined;
+                    safeSetDirty(node);
+                    return true;
+                }
+
+                if (node._inspectorEditBtn && clickX >= node._inspectorEditBtn.x && clickX <= node._inspectorEditBtn.x + node._inspectorEditBtn.w &&
+                    clickY >= node._inspectorEditBtn.y && clickY <= node._inspectorEditBtn.y + node._inspectorEditBtn.h) {
+                    const selIdx = node._selectedShotIndex;
+                    const { shots } = parsePromptBeats(promptW.value);
+                    if (selIdx !== undefined && selIdx >= 0 && selIdx < shots.length) {
+                        const currentBody = (shots[selIdx].body || "").replace(/^seconds:\s*[\d\.]+\s*/i, "").trim();
+                        const newBody = window.prompt(`Edit Beat ${selIdx + 1} Prompt:`, currentBody);
+                        if (newBody !== null && newBody.trim() !== currentBody) {
+                            updateShotBody(promptW, selIdx, newBody.trim());
+                            safeSetDirty(node);
+                        }
+                    }
                     return true;
                 }
 
