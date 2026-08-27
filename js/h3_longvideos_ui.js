@@ -2,7 +2,8 @@ import { app } from "../../scripts/app.js";
 
 /**
  * MiniMax-H3 LongVideos Dynamic Studio Interface
- * - Professional Studio Typography (Zero Emojis)
+ * - Professional Studio Typography (Zero Emojis, 100% Pure ASCII)
+ * - Dynamic Connection Bay Spacing (Header placed below slot area, zero slot collisions)
  * - Dynamic Full-Width Vector Drawing (Matches node width dynamically)
  * - Zero Widget Shifting (Preserves 100% positional widgets_values integrity)
  * - Interactive Shot Sequence Timeline Ribbon with Drag-and-Drop Reordering
@@ -116,6 +117,37 @@ function safeSetDirty(node) {
     try { node?.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     try { app?.graph?.setDirtyCanvas?.(true, true); } catch (_) {}
     try { app?.canvas?.setDirty?.(true, true); } catch (_) {}
+}
+
+function getHeaderMetrics(node) {
+    const maxSlots = Math.max(node?.inputs?.length || 0, node?.outputs?.length || 0);
+    // LiteGraph slots start around y = 28 and step ~20-22px
+    const slotAreaBottom = Math.max(34, 30 + maxSlots * 21);
+    const headerStartY = slotAreaBottom + 12;
+
+    const tabY = headerStartY;
+    const tabH = 26;
+
+    const modeY = tabY + tabH + 6;
+    const modeH = 24;
+
+    const presetY = modeY + modeH + 6;
+    const presetH = 24;
+
+    const ribbonY = presetY + presetH + 6;
+    const ribbonH = 82;
+
+    const totalHeaderBottom = node?._h3_show_timeline ? (ribbonY + ribbonH + 8) : (presetY + presetH + 8);
+
+    return {
+        slotAreaBottom,
+        headerStartY,
+        tabY, tabH,
+        modeY, modeH,
+        presetY, presetH,
+        ribbonY, ribbonH,
+        totalHeaderBottom
+    };
 }
 
 function parsePromptBeats(promptText, defaultSeconds = 5.0) {
@@ -271,14 +303,12 @@ function applyTabFilter(node, activeTab) {
     const showTimeline = (activeTab === "core" || activeTab === "directing" || activeTab === "all");
     node._h3_show_timeline = showTimeline;
 
-    // Header layout heights:
-    // Tab bar (26px) + Mode button (24px) + Preset bar (24px) + Timeline (84px when visible)
-    const headerHeight = showTimeline ? 216 : 126;
-    node.widgets_start_y = headerHeight;
+    const metrics = getHeaderMetrics(node);
+    node.widgets_start_y = metrics.totalHeaderBottom;
 
     for (const w of node.widgets) {
         if (w.name === "config_preset") {
-            // Drawn in custom header bar at top
+            // Rendered in custom header bar below connection bay
             w.type = "hidden";
             w.hidden = true;
             if (w.options) w.options.hidden = true;
@@ -352,10 +382,10 @@ function applyTabFilter(node, activeTab) {
         }
     }
 
-    const minWidth = 560;
+    const minWidth = 640;
     const computedSize = node.computeSize();
     const newWidth = Math.max(node.size[0] || minWidth, minWidth);
-    const newHeight = Math.max(computedSize[1] || 240, 240);
+    const newHeight = Math.max(computedSize[1] || (metrics.totalHeaderBottom + 120), metrics.totalHeaderBottom + 120);
     node.setSize([newWidth, newHeight]);
 
     if (typeof node.onResize === "function") {
@@ -432,7 +462,7 @@ app.registerExtension({
             return r;
         };
 
-        // Full-Width Vector Canvas Drawing (Zero Emojis, Responsive Scaling)
+        // Full-Width Vector Canvas Drawing (Placed below slot area)
         const origOnDrawForeground = nodeType.prototype.onDrawForeground;
         nodeType.prototype.onDrawForeground = function(ctx, canvas) {
             const r = origOnDrawForeground ? origOnDrawForeground.apply(this, arguments) : undefined;
@@ -443,11 +473,19 @@ app.registerExtension({
             const fullW = nodeW - margin * 2;
             if (fullW <= 100) return r;
 
+            const m = getHeaderMetrics(node);
+
             ctx.save();
 
-            // 1. Tab Navigation Bar (y = 34, h = 26)
-            const tabY = 34;
-            const tabH = 26;
+            // Subtle divider separating Connection Bay from Studio Controls
+            ctx.strokeStyle = "#2e2e42";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin, m.slotAreaBottom + 4);
+            ctx.lineTo(margin + fullW, m.slotAreaBottom + 4);
+            ctx.stroke();
+
+            // 1. Tab Navigation Bar (Placed cleanly below slot bay)
             const tabW = fullW / TABS.length;
 
             for (let i = 0; i < TABS.length; i++) {
@@ -457,7 +495,7 @@ app.registerExtension({
 
                 ctx.fillStyle = isActive ? "#3a3875" : "#1a1a24";
                 ctx.beginPath();
-                ctx.roundRect(tx + 1, tabY, tabW - 2, tabH, 3);
+                ctx.roundRect(tx + 1, m.tabY, tabW - 2, m.tabH, 3);
                 ctx.fill();
 
                 ctx.strokeStyle = isActive ? "#8b78ff" : "#333348";
@@ -468,18 +506,16 @@ app.registerExtension({
                 ctx.font = isActive ? "bold 10px sans-serif" : "9px sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(tab.label, tx + tabW / 2, tabY + tabH / 2);
+                ctx.fillText(tab.label, tx + tabW / 2, m.tabY + m.tabH / 2);
             }
 
-            // 2. Mode Action Button (y = 66, h = 24)
-            const modeY = 66;
-            const modeH = 24;
+            // 2. Mode Action Button
             const planW = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
             const isPlanOnly = planW ? Boolean(planW.value) : false;
 
             ctx.fillStyle = isPlanOnly ? "#143020" : "#20202e";
             ctx.beginPath();
-            ctx.roundRect(margin, modeY, fullW, modeH, 4);
+            ctx.roundRect(margin, m.modeY, fullW, m.modeH, 4);
             ctx.fill();
 
             ctx.strokeStyle = isPlanOnly ? "#34d399" : "#44445c";
@@ -493,17 +529,15 @@ app.registerExtension({
             const modeText = isPlanOnly
                 ? "MODE: PLAN ONLY (FAST PREVIEW, 0s RENDER)"
                 : "MODE: FULL RENDER (GENERATE VIDEO & AUDIO)";
-            ctx.fillText(modeText, margin + fullW / 2, modeY + modeH / 2);
+            ctx.fillText(modeText, margin + fullW / 2, m.modeY + m.modeH / 2);
 
-            // 3. Workflow Preset Selector (y = 96, h = 24)
-            const presetY = 96;
-            const presetH = 24;
+            // 3. Workflow Preset Selector
             const cpW = node.widgets ? node.widgets.find(w => w.name === "config_preset") : null;
             const currentPreset = cpW ? (cpW.value || PRESETS[0]) : PRESETS[0];
 
             ctx.fillStyle = "#181822";
             ctx.beginPath();
-            ctx.roundRect(margin, presetY, fullW, presetH, 4);
+            ctx.roundRect(margin, m.presetY, fullW, m.presetH, 4);
             ctx.fill();
 
             ctx.strokeStyle = "#38384e";
@@ -513,22 +547,20 @@ app.registerExtension({
             ctx.textAlign = "left";
             ctx.font = "bold 10px sans-serif";
             ctx.fillStyle = "#8b78ff";
-            ctx.fillText("PRESET:", margin + 8, presetY + presetH / 2);
+            ctx.fillText("PRESET:", margin + 8, m.presetY + m.presetH / 2);
 
             ctx.font = "10px sans-serif";
             ctx.fillStyle = "#f1f5f9";
-            ctx.fillText(currentPreset, margin + 65, presetY + presetH / 2);
+            ctx.fillText(currentPreset, margin + 65, m.presetY + m.presetH / 2);
 
             // Cycle button indicators on right
             ctx.textAlign = "right";
             ctx.font = "bold 9px sans-serif";
             ctx.fillStyle = "#94a3b8";
-            ctx.fillText("[ PREV | NEXT ]", margin + fullW - 8, presetY + presetH / 2);
+            ctx.fillText("[ PREV | NEXT ]", margin + fullW - 8, m.presetY + m.presetH / 2);
 
-            // 4. Shot Sequence Timeline Ribbon (y = 126, h = 82, shown on core/directing/all)
+            // 4. Shot Sequence Timeline Ribbon (shown on core/directing/all)
             if (node._h3_show_timeline) {
-                const ribbonY = 126;
-                const ribbonH = 82;
                 const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
                 const promptText = promptW ? promptW.value : "";
                 const shotSecW = node.widgets ? node.widgets.find(w => w.name === "shot_seconds") : null;
@@ -546,7 +578,7 @@ app.registerExtension({
                 // Container
                 ctx.fillStyle = "#121218";
                 ctx.beginPath();
-                ctx.roundRect(margin, ribbonY, fullW, ribbonH, 4);
+                ctx.roundRect(margin, m.ribbonY, fullW, m.ribbonH, 4);
                 ctx.fill();
                 ctx.strokeStyle = "#28283a";
                 ctx.lineWidth = 1;
@@ -560,15 +592,15 @@ app.registerExtension({
                 const titleText = shots.length > 0
                     ? `SHOT TIMELINE [ ${shots.length} Shots, ${totalSec.toFixed(1)}s / ${totalFrames}f ]`
                     : "SHOT TIMELINE [ Type beats in prompt to visualize shots ]";
-                ctx.fillText(titleText, margin + 8, ribbonY + 6);
+                ctx.fillText(titleText, margin + 8, m.ribbonY + 6);
 
                 ctx.textAlign = "right";
                 ctx.fillStyle = "#64748b";
                 ctx.font = "9px sans-serif";
-                ctx.fillText("[ Drag to Reorder | +/- Duration ]", margin + fullW - 8, ribbonY + 6);
+                ctx.fillText("[ Drag to Reorder | +/- Duration ]", margin + fullW - 8, m.ribbonY + 6);
 
                 // Track area
-                const trackY = ribbonY + 20;
+                const trackY = m.ribbonY + 20;
                 const trackH = 44;
                 const trackW = fullW - 12;
                 const trackX = margin + 6;
@@ -680,7 +712,7 @@ app.registerExtension({
                 }
 
                 // Status Footer
-                const footY = ribbonY + 68;
+                const footY = m.ribbonY + 68;
                 ctx.fillStyle = "#64748b";
                 ctx.font = "9px sans-serif";
                 ctx.textAlign = "left";
@@ -701,9 +733,10 @@ app.registerExtension({
             const clickY = pos[1];
             const margin = 12;
             const fullW = node.size[0] - margin * 2;
+            const m = getHeaderMetrics(node);
 
-            // 1. Tab Bar Click (y: 34 to 60)
-            if (clickY >= 34 && clickY <= 60 && clickX >= margin && clickX <= margin + fullW) {
+            // 1. Tab Bar Click
+            if (clickY >= m.tabY && clickY <= (m.tabY + m.tabH) && clickX >= margin && clickX <= margin + fullW) {
                 const tabW = fullW / TABS.length;
                 const clickedIdx = Math.floor((clickX - margin) / tabW);
                 if (clickedIdx >= 0 && clickedIdx < TABS.length) {
@@ -716,8 +749,8 @@ app.registerExtension({
                 }
             }
 
-            // 2. Mode Button Click (y: 66 to 90)
-            if (clickY >= 66 && clickY <= 90 && clickX >= margin && clickX <= margin + fullW) {
+            // 2. Mode Button Click
+            if (clickY >= m.modeY && clickY <= (m.modeY + m.modeH) && clickX >= margin && clickX <= margin + fullW) {
                 const planW = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
                 if (planW) {
                     planW.value = !planW.value;
@@ -727,8 +760,8 @@ app.registerExtension({
                 }
             }
 
-            // 3. Preset Selector Click (y: 96 to 120)
-            if (clickY >= 96 && clickY <= 120 && clickX >= margin && clickX <= margin + fullW) {
+            // 3. Preset Selector Click
+            if (clickY >= m.presetY && clickY <= (m.presetY + m.presetH) && clickX >= margin && clickX <= margin + fullW) {
                 const cpW = node.widgets ? node.widgets.find(w => w.name === "config_preset") : null;
                 const current = cpW ? (cpW.value || PRESETS[0]) : PRESETS[0];
                 let idx = PRESETS.indexOf(current);
@@ -750,8 +783,8 @@ app.registerExtension({
                 return true;
             }
 
-            // 4. Shot Sequence Timeline Interaction (y: 146 to 190)
-            if (node._h3_show_timeline && clickY >= 146 && clickY <= 190 && clickX >= margin && clickX <= margin + fullW) {
+            // 4. Shot Sequence Timeline Interaction
+            if (node._h3_show_timeline && clickY >= (m.ribbonY + 20) && clickY <= (m.ribbonY + 64) && clickX >= margin && clickX <= margin + fullW) {
                 const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
                 const hitBox = (node._shotBoxes || []).find(b =>
                     clickX >= b.x && clickX <= (b.x + b.w) && clickY >= b.y && clickY <= (b.y + b.h)
