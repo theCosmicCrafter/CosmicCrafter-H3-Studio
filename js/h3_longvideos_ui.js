@@ -1,5 +1,5 @@
-import { app } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
+import { app } from "/scripts/app.js";
+import { api } from "/scripts/api.js";
 
 /**
  * MiniMax-H3 LongVideos Professional Video Editing Studio Interface
@@ -15,7 +15,34 @@ import { api } from "../../scripts/api.js";
  * - 100% Pure ASCII Typography (Zero Emojis)
  */
 
-const TARGET_NODES = new Set(["H3LongVideoStudio", "H3LongVideos", "H3_Promptor", "H3LongVideosFL2VA", "H3LongVideosV1", "H3LongVideosREF2VA"]);
+const TARGET_NODES = new Set([
+    "H3LongVideoStudio",
+    "H3LongVideos",
+    "H3_Promptor",
+    "H3LongVideosFL2VA",
+    "H3LongVideosV1",
+    "H3LongVideosREF2VA",
+    "H3 LongVideo Studio"
+]);
+
+function isTargetNode(nodeOrName) {
+    if (!nodeOrName) return false;
+    const name = typeof nodeOrName === "string" ? nodeOrName : (nodeOrName.type || nodeOrName.comfyClass || nodeOrName.title || "");
+    return TARGET_NODES.has(name) || name.toLowerCase().includes("h3longvideo");
+}
+
+function initNodeStudio(node) {
+    if (!node) return;
+    if (!node._h3_active_tab) node._h3_active_tab = "core";
+    node._h3_show_timeline = true;
+    if (!node._shotBoxes) node._shotBoxes = [];
+    if (!node._refBoxes) node._refBoxes = [];
+    node._draggingIndex = null;
+    node._dragStartX = 0;
+    sanitizeNodeSlots(node);
+    applyTabFilter(node, node._h3_active_tab || "core");
+    safeSetDirty(node);
+}
 
 const TABS = [
     { id: "presets", label: "PRESETS" },
@@ -682,7 +709,7 @@ app.registerExtension({
     name: "MiniMaxH3.LongVideosUI",
 
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (!TARGET_NODES.has(nodeData.name)) return;
+        if (!isTargetNode(nodeData.name)) return;
 
         const origNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function () {
@@ -864,6 +891,10 @@ app.registerExtension({
         nodeType.prototype.onDrawForeground = function(ctx, canvas) {
             const r = origOnDrawForeground ? origOnDrawForeground.apply(this, arguments) : undefined;
             const node = this;
+            if (!node._h3_initialized) {
+                node._h3_initialized = true;
+                initNodeStudio(node);
+            }
 
             const nodeW = node.size[0];
             const margin = 12;
@@ -1621,10 +1652,21 @@ const origNodeMouseDown = nodeType.prototype.onMouseDown;
             const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
             const n = this;
             setTimeout(() => {
-                sanitizeNodeSlots(n);
-                applyTabFilter(n, n._h3_active_tab || "core");
+                initNodeStudio(n);
             }, 30);
             return r;
         };
+    },
+
+    async nodeCreated(node, app) {
+        if (isTargetNode(node)) {
+            initNodeStudio(node);
+        }
+    },
+
+    async loadedGraphNode(node, app) {
+        if (isTargetNode(node)) {
+            initNodeStudio(node);
+        }
     }
 });
