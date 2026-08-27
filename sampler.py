@@ -187,17 +187,47 @@ def resolution_options():
 def parse_resolution(choice):
     """The chosen ratio's reference dimensions, which `megapixels` then scales.
 
-    Accepts a bare ratio ("16:9") and ALSO the old "16:9 - 1344x768 (native)" form,
-    so a workflow saved before this list was simplified still resolves to the right
-    shape instead of silently falling back to the first entry. Unrecognized input
-    gives 16:9."""
-    text = (choice or "").strip()
+    Accepts a bare ratio ("16:9"), legacy labels ("16:9 - 1344x768"), explicit dimensions ("1344x768"),
+    tuples/lists ((1344, 768)), dicts ({"width": 1344, "height": 768}), and float aspect ratios (1.778 -> 16:9).
+    Completely immune to crashes from external resolution nodes or corrupted workflow deserialization."""
+    if choice is None:
+        return NATIVE_RES["16:9"]
+
+    if isinstance(choice, (tuple, list)) and len(choice) >= 2:
+        try:
+            w, h = int(choice[0]), int(choice[1])
+            if w > 0 and h > 0:
+                return w, h
+        except Exception:
+            pass
+
+    if isinstance(choice, dict):
+        w = choice.get("width") or choice.get("w")
+        h = choice.get("height") or choice.get("h")
+        if w and h:
+            try:
+                return int(w), int(h)
+            except Exception:
+                pass
+
+    if isinstance(choice, (int, float)):
+        val = float(choice)
+        best_ratio = "16:9"
+        best_diff = 999.0
+        for k, (nw, nh) in NATIVE_RES.items():
+            diff = abs((nw / nh) - val)
+            if diff < best_diff:
+                best_diff = diff
+                best_ratio = k
+        return NATIVE_RES[best_ratio]
+
+    text = str(choice).strip()
     if text in NATIVE_RES:
         return NATIVE_RES[text]
-    m = re.search(r"(\d+)\s*x\s*(\d+)", text)          # legacy label carried its size
+    m = re.search(r"(\d+)\s*x\s*(\d+)", text)
     if m:
         return int(m.group(1)), int(m.group(2))
-    for r in NATIVE_RES:                                # legacy label led with the ratio
+    for r in NATIVE_RES:
         if text.startswith(r):
             return NATIVE_RES[r]
     return NATIVE_RES["16:9"]
@@ -5909,6 +5939,13 @@ class H3LongVideos:
                     f"computed at {H3_FPS}; set your video-save node to {H3_FPS} too")
         fps = H3_FPS
         w, h = parse_resolution(resolution)
+        if "width" in kwargs and "height" in kwargs:
+            try:
+                kw_w, kw_h = int(kwargs["width"]), int(kwargs["height"])
+                if kw_w > 0 and kw_h > 0:
+                    w, h = kw_w, kw_h
+            except Exception:
+                pass
         # A pixel budget overrides the preset's SIZE while keeping its aspect ratio,
         # so the dropdown chooses the shape and this chooses how big. Scaling from
         # the preset's own dimensions is what makes 1.00MP reproduce each native

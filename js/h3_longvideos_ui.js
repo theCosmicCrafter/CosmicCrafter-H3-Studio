@@ -122,22 +122,101 @@ function safeSetDirty(node) {
 /**
  * Prunes obsolete slots and repairs corrupted widget values loaded from old workflow files
  */
+const VALID_RATIOS = ["16:9", "9:16", "4:3", "3:4", "1:1", "21:9", "9:21"];
+
+function repairAndEnforceWidgetTypes(node) {
+    if (!node || !Array.isArray(node.widgets)) return;
+
+    for (const w of node.widgets) {
+        if (!w || !w.name) continue;
+
+        if (w.name === "resolution") {
+            w.type = "combo";
+            w._h3_origType = "combo";
+            if (!w.options) w.options = {};
+            w.options.values = [...VALID_RATIOS];
+
+            // Validate and repair value
+            if (typeof w.value !== "string" || !VALID_RATIOS.includes(w.value)) {
+                let resolved = null;
+                if (typeof w.value === "string") {
+                    resolved = VALID_RATIOS.find(r => w.value.startsWith(r) || r.startsWith(w.value));
+                } else if (typeof w.value === "number") {
+                    if (w.value < 0.7) resolved = "9:16";
+                    else if (w.value < 0.95) resolved = "3:4";
+                    else if (w.value < 1.15) resolved = "1:1";
+                    else if (w.value < 1.5) resolved = "4:3";
+                    else if (w.value < 2.0) resolved = "16:9";
+                    else resolved = "21:9";
+                }
+                w.value = resolved || "16:9";
+            }
+
+            if (w.inputEl && w.inputEl.type === "number") {
+                w.inputEl.type = "text";
+                w.inputEl.value = w.value;
+            }
+        } else if (w.name === "sampler_name") {
+            w.type = "combo";
+            w._h3_origType = "combo";
+            if (typeof w.value !== "string" || !w.value || w.value === "simple") {
+                w.value = "res_multistep";
+            }
+        } else if (w.name === "scheduler") {
+            w.type = "combo";
+            w._h3_origType = "combo";
+            if (typeof w.value !== "string" || !w.value || typeof w.value === "number") {
+                w.value = "simple";
+            }
+        } else if (w.name === "cfg") {
+            w.type = "number";
+            w._h3_origType = "number";
+            if (typeof w.value !== "number" || isNaN(w.value) || w.value < 0.0 || w.value > 30.0) {
+                w.value = 1.0;
+            }
+        } else if (w.name === "megapixels") {
+            w.type = "number";
+            w._h3_origType = "number";
+            if (typeof w.value !== "number" || isNaN(w.value) || w.value < 0.1 || w.value > 4.0) {
+                w.value = 1.0;
+            }
+        } else if (w.name === "steps") {
+            w.type = "number";
+            w._h3_origType = "number";
+            if (typeof w.value !== "number" || isNaN(w.value) || w.value < 1 || w.value > 200) {
+                w.value = 25;
+            }
+        } else if (w.name === "seed") {
+            w.type = "number";
+            w._h3_origType = "number";
+            if (typeof w.value !== "number" || isNaN(w.value)) {
+                w.value = 0;
+            }
+        }
+    }
+}
+
 function sanitizeNodeSlots(node) {
     if (!node) return;
-    const allowedInputs = new Set(["model", "clip", "vae", "audio_vae"]);
-    const expectedOutputs = ["images", "audio", "fps"];
 
-    // 1. Prune obsolete / converted input slots
+    // Prune ONLY the explicitly obsolete exterior conditioning inputs
+    const OBSOLETE_SLOTS = new Set([
+        "first_frame", "ref_images",
+        "ref_image_1", "ref_image_2", "ref_image_3", "ref_image_4",
+        "exposed_terms"
+    ]);
+
     if (Array.isArray(node.inputs)) {
         for (let i = node.inputs.length - 1; i >= 0; i--) {
             const inp = node.inputs[i];
-            if (!allowedInputs.has(inp.name)) {
+            if (OBSOLETE_SLOTS.has(inp.name)) {
                 node.removeInput(i);
             }
         }
     }
 
-    // 2. Prune obsolete output slots to exactly 3
+    // Prune obsolete output slots to exactly 3
+    const expectedOutputs = ["images", "audio", "fps"];
     if (Array.isArray(node.outputs)) {
         for (let i = node.outputs.length - 1; i >= 0; i--) {
             const out = node.outputs[i];
@@ -150,37 +229,7 @@ function sanitizeNodeSlots(node) {
         if (node.outputs[2]) { node.outputs[2].name = "fps"; node.outputs[2].type = "FLOAT"; }
     }
 
-    // 3. Repair corrupted widget values caused by old workflow positional mismatches
-    const cfgW = node.widgets?.find(w => w.name === "cfg");
-    if (cfgW && (isNaN(cfgW.value) || typeof cfgW.value !== "number")) cfgW.value = 1.0;
-
-    const seedW = node.widgets?.find(w => w.name === "seed");
-    if (seedW && (isNaN(seedW.value) || typeof seedW.value !== "number")) seedW.value = 0;
-
-    const resW = node.widgets?.find(w => w.name === "resolution");
-    if (resW && (typeof resW.value === "number" || !isNaN(parseFloat(resW.value)))) {
-        resW.value = "16:9 (Cinematic Widescreen 1344x768)";
-    }
-
-    const mpW = node.widgets?.find(w => w.name === "megapixels");
-    if (mpW && (typeof mpW.value !== "number" || mpW.value > 4.0 || mpW.value < 0.1)) {
-        mpW.value = 1.0;
-    }
-
-    const stepsW = node.widgets?.find(w => w.name === "steps");
-    if (stepsW && (typeof stepsW.value !== "number" || stepsW.value < 6 || stepsW.value > 100)) {
-        stepsW.value = 25;
-    }
-
-    const schedW = node.widgets?.find(w => w.name === "scheduler");
-    if (schedW && (typeof schedW.value === "number" || !isNaN(parseFloat(schedW.value)))) {
-        schedW.value = "simple";
-    }
-
-    const samplerW = node.widgets?.find(w => w.name === "sampler_name");
-    if (samplerW && samplerW.value === "simple") {
-        samplerW.value = "res_multistep";
-    }
+    repairAndEnforceWidgetTypes(node);
 }
 
 const _IMAGE_CACHE = new Map();
@@ -442,6 +491,7 @@ function applyPreset(node, presetName) {
 }
 
 function applyTabFilter(node, activeTab) {
+    repairAndEnforceWidgetTypes(node);
     if (!node || !node.widgets) return;
 
     sanitizeNodeSlots(node);
