@@ -6743,15 +6743,17 @@ class H3LongVideos:
 # and "H3LongVideosREF2VA" the separate reference node that has now been folded in.
 # They are aliases onto the same class -- there is no second implementation.
 NODE_CLASS_MAPPINGS = {
+    "H3LongVideoStudio": H3LongVideos,
     "H3LongVideos": H3LongVideos,
     "H3LongVideosFL2VA": H3LongVideos,        # do not remove
     "H3LongVideosV1": H3LongVideos,           # do not remove
     "H3LongVideosREF2VA": H3LongVideos,       # do not remove
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "H3LongVideos": "H3 Long Videos (FL2VA + REF2VA)",
-    "H3LongVideosFL2VA": "H3 Long Videos (FL2VA + REF2VA)",
-    "H3LongVideosV1": "H3 Long Videos (FL2VA + REF2VA)",
-    "H3LongVideosREF2VA": "H3 Long Videos (FL2VA + REF2VA)",
+    "H3LongVideoStudio": "H3 LongVideo Studio",
+    "H3LongVideos": "H3 LongVideo Studio",
+    "H3LongVideosFL2VA": "H3 LongVideo Studio",
+    "H3LongVideosV1": "H3 LongVideo Studio",
+    "H3LongVideosREF2VA": "H3 LongVideo Studio",
 }
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

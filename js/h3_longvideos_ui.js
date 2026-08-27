@@ -15,7 +15,7 @@ import { api } from "../../scripts/api.js";
  * - 100% Pure ASCII Typography (Zero Emojis)
  */
 
-const TARGET_NODES = new Set(["H3LongVideos", "H3_Promptor", "H3LongVideosFL2VA", "H3LongVideosV1", "H3LongVideosREF2VA"]);
+const TARGET_NODES = new Set(["H3LongVideoStudio", "H3LongVideos", "H3_Promptor", "H3LongVideosFL2VA", "H3LongVideosV1", "H3LongVideosREF2VA"]);
 
 const TABS = [
     { id: "presets", label: "PRESETS" },
@@ -602,6 +602,7 @@ app.registerExtension({
             const node = this;
 
             node._h3_active_tab = "core";
+            if (node.title === "H3 Long Videos (FL2VA + REF2VA)" || !node.title) node.title = "H3 LongVideo Studio";
             node._h3_show_timeline = true;
             node._shotBoxes = [];
             node._refBoxes = [];
