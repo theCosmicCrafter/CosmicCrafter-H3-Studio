@@ -6949,9 +6949,9 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "H3LongVideoStudio": "H3 LongVideo Studio",
-    "H3LongVideos": "H3 LongVideo Studio",
-    "H3LongVideosFL2VA": "H3 LongVideo Studio",
-    "H3LongVideosV1": "H3 LongVideo Studio",
-    "H3LongVideosREF2VA": "H3 LongVideo Studio",
+    "H3LongVideos": "H3 Long Videos (Legacy)",
+    "H3LongVideosFL2VA": "H3 Long Videos FL2VA (Legacy)",
+    "H3LongVideosV1": "H3 Long Videos V1 (Legacy)",
+    "H3LongVideosREF2VA": "H3 Long Videos REF2VA (Legacy)",
 }
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
