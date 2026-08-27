@@ -8,6 +8,7 @@ const TARGET_NODES = new Set([
 ]);
 
 const TABS = [
+    { id: "presets", label: "⚡ Presets" },
     { id: "core", label: "🎬 Core" },
     { id: "directing", label: "⏱️ Directing" },
     { id: "audio", label: "🔊 Audio" },
@@ -111,7 +112,18 @@ function applyTabFilter(node, activeTab) {
         }
 
         const category = WIDGET_CATEGORIES[w.name] || "core";
-        const shouldShow = (activeTab === "all" || category === activeTab);
+        let shouldShow = false;
+        if (activeTab === "all") {
+            shouldShow = true;
+        } else if (activeTab === "presets") {
+            // Presets tab: Show preset selector and primary core dials
+            shouldShow = ["config_preset", "steps", "megapixels", "resolution", "plan_only"].includes(w.name);
+        } else if (w.name === "config_preset") {
+            // config_preset is ALWAYS shown above prompt on Core as well!
+            shouldShow = (activeTab === "core" || activeTab === "presets");
+        } else {
+            shouldShow = (category === activeTab);
+        }
 
         if (shouldShow) {
             w.type = w._h3_origType;
@@ -386,6 +398,14 @@ app.registerExtension({
                     };
                 }
 
+                // Ensure config_preset sits at the top of parameters, directly above prompt
+                const cpIndex = node.widgets.findIndex(w => w.name === "config_preset");
+                const promptIndex = node.widgets.findIndex(w => w.name === "prompt");
+                if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
+                    const cpWidget = node.widgets.splice(cpIndex, 1)[0];
+                    node.widgets.splice(promptIndex, 0, cpWidget);
+                }
+
                 // Clean up any legacy or orphaned exposed_terms DOM widget
                 if (node.widgets) {
                     const expW = node.widgets.find(w => w.name === "exposed_terms");
@@ -411,6 +431,12 @@ app.registerExtension({
                 const n = this;
                 setTimeout(() => {
                     if (n.widgets) {
+                        const cpIndex = n.widgets.findIndex(w => w.name === "config_preset");
+                        const promptIndex = n.widgets.findIndex(w => w.name === "prompt");
+                        if (cpIndex !== -1 && promptIndex !== -1 && cpIndex > promptIndex) {
+                            const cpWidget = n.widgets.splice(cpIndex, 1)[0];
+                            n.widgets.splice(promptIndex, 0, cpWidget);
+                        }
                         const expW = n.widgets.find(w => w.name === "exposed_terms");
                         if (expW) {
                             if (expW.inputEl) expW.inputEl.remove();
