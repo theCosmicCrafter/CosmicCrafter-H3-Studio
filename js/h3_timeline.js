@@ -547,17 +547,17 @@ ctx.fillRect(TOOL_X - 4, 0, WIDTH - (TOOL_X - 4), RULER_H - 16);
                 const hasUndo = (nd._h3Undo?.length ?? 0) > 0;
                 const hasRedo = (nd._h3Redo?.length ?? 0) > 0;
                 const defs = [
-                    ["↶ Undo", "undo"],
-                    ["↷ Redo", "redo"],
-                    ["✂ Split", "split"],
-                    ["🧲 Snap", "snap"],
-                    [this._playing ? "⏹ Stop" : "▶ Play", "play"],
+                    ["Undo", "undo"],
+                    ["Redo", "redo"],
+                    ["Split", "split"],
+                    ["Snap", "snap"],
+                    [this._playing ? "Stop" : "Play", "play"],
                     ["F", "unit"],
-                    ["−", "out"],
+                    ["-", "out"],
                     ["+", "in"],
-                    ["🗑 Clear", "clear"],
-                    ["⤓ Export", "export"],
-                    ["⤒ Import", "import"],
+                    ["Clear", "clear"],
+                    ["Export", "export"],
+                    ["Import", "import"],
                 ];
                 this._btns = [];
                 let bx = TOOL_X;

@@ -1,0 +1,509 @@
+{
+  "last_node_id": 14,
+  "last_link_id": 16,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadAudio",
+      "pos": [
+        100,
+        300
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "widgets_values": [
+        "example.wav"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SAMLoader",
+      "pos": [
+        100,
+        500
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAM_MODEL",
+          "type": "SAM_MODEL",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "widgets_values": [
+        "sam_vit_h_4b8939.pth",
+        "cuda"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SAMDetectorCombined",
+      "pos": [
+        400,
+        100
+      ],
+      "inputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "link": 4
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "widgets_values": [
+        0.5,
+        8.0,
+        "true",
+        "[]"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "InvertMask",
+      "pos": [
+        700,
+        100
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "AudioFeatureExtractor",
+      "pos": [
+        400,
+        300
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "widgets_values": [
+        "rms",
+        24
+      ]
+    },
+    {
+      "id": 7,
+      "type": "FeatureToMask",
+      "pos": [
+        700,
+        300
+      ],
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "MaskComposite",
+      "pos": [
+        1000,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "destination",
+          "type": "MASK",
+          "link": 6
+        },
+        {
+          "name": "source",
+          "type": "MASK",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            9,
+            16
+          ]
+        }
+      ],
+      "widgets_values": [
+        0,
+        0,
+        "multiply"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "MiniMaxH3ReferenceToVideo",
+      "pos": [
+        700,
+        500
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "widgets_values": [
+        33,
+        24,
+        "1280x720",
+        "disabled"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "SetLatentNoiseMask",
+      "pos": [
+        1300,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            11
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "MiniMaxH3CustomKeyframes",
+      "pos": [
+        1300,
+        500
+      ],
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "widgets_values": [
+        "{\"count\":1,\"positions\":[1]}",
+        "1-based",
+        "disabled"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "KSampler",
+      "pos": [
+        1600,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "widgets_values": [
+        123,
+        "randomize",
+        30,
+        8.0,
+        "euler",
+        "normal",
+        1.0
+      ]
+    },
+    {
+      "id": 13,
+      "type": "VAEDecode",
+      "pos": [
+        1900,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        2200,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        }
+      ],
+      "outputs": [],
+      "widgets_values": [
+        24,
+        0,
+        "video/mp4",
+        "h264",
+        "base",
+        20,
+        "x264",
+        "CosmicCrafter_Output"
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      1,
+      "IMAGE"
+    ],
+    [
+      2,
+      1,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      0,
+      6,
+      0,
+      "AUDIO"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      0,
+      "SAM_MODEL"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "MASK"
+    ],
+    [
+      6,
+      5,
+      0,
+      8,
+      0,
+      "MASK"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      0,
+      "FEATURE"
+    ],
+    [
+      8,
+      7,
+      0,
+      8,
+      1,
+      "MASK"
+    ],
+    [
+      9,
+      8,
+      0,
+      10,
+      1,
+      "MASK"
+    ],
+    [
+      10,
+      9,
+      0,
+      10,
+      0,
+      "LATENT"
+    ],
+    [
+      11,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      12,
+      11,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      12,
+      0,
+      13,
+      0,
+      "LATENT"
+    ],
+    [
+      14,
+      13,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ]
+  ]
+}

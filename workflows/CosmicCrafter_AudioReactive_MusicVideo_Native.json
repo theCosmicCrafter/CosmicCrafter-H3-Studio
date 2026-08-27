@@ -1,0 +1,962 @@
+{
+  "id": "CosmicCrafter Audio-Reactive Music Video",
+  "revision": 0,
+  "last_node_id": 17,
+  "last_link_id": 21,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        -1900,
+        -520
+      ],
+      "size": [
+        400,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9,
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        -1900,
+        -400
+      ],
+      "size": [
+        400,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "minimax",
+        "default"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        -1900,
+        -260
+      ],
+      "size": [
+        400,
+        58
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            3,
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_video_vae_fp16.safetensors"
+      ],
+      "title": "Video VAE"
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        -1900,
+        -180
+      ],
+      "size": [
+        400,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "minimax_h3_audio_vae_fp32.safetensors"
+      ],
+      "title": "Audio VAE"
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        -1900,
+        -80
+      ],
+      "size": [
+        400,
+        330
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "test_image.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "LoadAudio",
+      "pos": [
+        -1900,
+        300
+      ],
+      "size": [
+        400,
+        130
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            1,
+            7,
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadAudio"
+      },
+      "widgets_values": [
+        "test_audio.mp3",
+        null
+      ]
+    },
+    {
+      "id": 7,
+      "type": "MiniMaxH3AudioAnalyze",
+      "pos": [
+        -1420,
+        320
+      ],
+      "size": [
+        330,
+        190
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 1
+        },
+        {
+          "name": "clip_start_seconds",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "clip_frames",
+          "type": "INT",
+          "link": null
+        },
+        {
+          "name": "beat_decay",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "sensitivity",
+          "type": "FLOAT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "energy",
+          "type": "FLOAT",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "beats",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "brightness",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "onsets",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "bass",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "mids",
+          "type": "FLOAT",
+          "links": []
+        },
+        {
+          "name": "highs",
+          "type": "FLOAT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3AudioAnalyze"
+      },
+      "widgets_values": [
+        0.0,
+        124,
+        0.15,
+        1.0
+      ]
+    },
+    {
+      "id": 8,
+      "type": "MiniMaxH3ImageToVideo",
+      "pos": [
+        -1020,
+        -520
+      ],
+      "size": [
+        420,
+        400
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 3
+        },
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "last_frame",
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3ImageToVideo"
+      },
+      "widgets_values": [
+        "integrated_multimodal_description:\nA music video that moves with the track.\n\nThe camera pushes and drifts in time with the rhythm, holding on the downbeat and gliding through the phrase.\n\nLight pulses with the percussion - practical lamps, reflections and haze flare on the hits and fall back between them.\n\nThe subject performs to the music: weight shifting, head and shoulders answering the beat, hair and fabric carrying the motion.\n\nCinematic, shallow depth of field, volumetric light, film grain.",
+        1344,
+        768,
+        124
+      ]
+    },
+    {
+      "id": 9,
+      "type": "MiniMaxH3SongMaskedAVContext",
+      "pos": [
+        -560,
+        -520
+      ],
+      "size": [
+        380,
+        240
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 5
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 6
+        },
+        {
+          "name": "master_audio",
+          "type": "AUDIO",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "source_frames",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "source_latent",
+          "type": "LATENT",
+          "link": null
+        },
+        {
+          "name": "clip_start_seconds",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "context_frames",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3SongMaskedAVContext"
+      },
+      "widgets_values": [
+        0.0,
+        0
+      ]
+    },
+    {
+      "id": 10,
+      "type": "MiniMaxH3AudioReactiveDenoise",
+      "pos": [
+        -1020,
+        660
+      ],
+      "size": [
+        330,
+        150
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "curve",
+          "type": "FLOAT",
+          "link": 8
+        },
+        {
+          "name": "mode",
+          "type": "ENUM",
+          "link": null
+        },
+        {
+          "name": "min_strength",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "max_strength",
+          "type": "FLOAT",
+          "link": null
+        },
+        {
+          "name": "invert",
+          "type": "BOOLEAN",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "denoise_strength",
+          "type": "FLOAT",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MiniMaxH3AudioReactiveDenoise"
+      },
+      "widgets_values": [
+        "peak",
+        0.75,
+        1.0,
+        false
+      ]
+    },
+    {
+      "id": 11,
+      "type": "BasicGuider",
+      "pos": [
+        260,
+        -520
+      ],
+      "size": [
+        260,
+        60
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        },
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicGuider"
+      }
+    },
+    {
+      "id": 12,
+      "type": "KSamplerSelect",
+      "pos": [
+        260,
+        -420
+      ],
+      "size": [
+        260,
+        58
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect"
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 13,
+      "type": "BasicScheduler",
+      "pos": [
+        260,
+        -320
+      ],
+      "size": [
+        260,
+        110
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "denoise",
+          "type": "FLOAT",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BasicScheduler"
+      },
+      "widgets_values": [
+        "simple",
+        20,
+        1.0
+      ]
+    },
+    {
+      "id": 14,
+      "type": "RandomNoise",
+      "pos": [
+        260,
+        -180
+      ],
+      "size": [
+        260,
+        82
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "NOISE",
+          "type": "NOISE",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "RandomNoise"
+      },
+      "widgets_values": [
+        0,
+        "fixed"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "SamplerCustomAdvanced",
+      "pos": [
+        580,
+        -520
+      ],
+      "size": [
+        300,
+        130
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "noise",
+          "type": "NOISE",
+          "link": 13
+        },
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 14
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 15
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 16
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 17
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output",
+          "type": "LATENT",
+          "links": [
+            18
+          ]
+        },
+        {
+          "name": "denoised_output",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SamplerCustomAdvanced"
+      }
+    },
+    {
+      "id": 16,
+      "type": "VAEDecode",
+      "pos": [
+        920,
+        -520
+      ],
+      "size": [
+        220,
+        58
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 18
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 17,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1200,
+        -520
+      ],
+      "size": [
+        420,
+        500
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": [
+        24,
+        0,
+        "CosmicCrafter_AudioReactive",
+        "video/h264-mp4",
+        false,
+        true,
+        "yuv420p",
+        19,
+        true,
+        false
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      6,
+      0,
+      7,
+      0,
+      "AUDIO"
+    ],
+    [
+      2,
+      2,
+      0,
+      8,
+      0,
+      "CLIP"
+    ],
+    [
+      3,
+      3,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      4,
+      5,
+      0,
+      8,
+      2,
+      "IMAGE"
+    ],
+    [
+      5,
+      8,
+      1,
+      9,
+      0,
+      "LATENT"
+    ],
+    [
+      6,
+      4,
+      0,
+      9,
+      1,
+      "VAE"
+    ],
+    [
+      7,
+      6,
+      0,
+      9,
+      2,
+      "AUDIO"
+    ],
+    [
+      8,
+      7,
+      0,
+      10,
+      0,
+      "FLOAT"
+    ],
+    [
+      9,
+      1,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      8,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      1,
+      0,
+      13,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      10,
+      0,
+      13,
+      1,
+      "FLOAT"
+    ],
+    [
+      13,
+      14,
+      0,
+      15,
+      0,
+      "NOISE"
+    ],
+    [
+      14,
+      11,
+      0,
+      15,
+      1,
+      "GUIDER"
+    ],
+    [
+      15,
+      12,
+      0,
+      15,
+      2,
+      "SAMPLER"
+    ],
+    [
+      16,
+      13,
+      0,
+      15,
+      3,
+      "SIGMAS"
+    ],
+    [
+      17,
+      9,
+      0,
+      15,
+      4,
+      "LATENT"
+    ],
+    [
+      18,
+      15,
+      0,
+      16,
+      0,
+      "LATENT"
+    ],
+    [
+      19,
+      3,
+      0,
+      16,
+      1,
+      "VAE"
+    ],
+    [
+      20,
+      16,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      6,
+      0,
+      17,
+      1,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

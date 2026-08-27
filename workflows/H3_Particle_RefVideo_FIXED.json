@@ -1,0 +1,461 @@
+{
+  "92": {
+    "inputs": {
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto",
+      "video-preview": "",
+      "video": [
+        "130",
+        0
+      ]
+    },
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save Video"
+    }
+  },
+  "115": {
+    "inputs": {
+      "aspect_ratio": "3:4 (Portrait Standard)",
+      "megapixels": 0.4,
+      "multiple": 32
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector (Size)"
+    }
+  },
+  "119": {
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "120": {
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "121": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "120",
+        0
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAE Decode Audio"
+    }
+  },
+  "122": {
+    "inputs": {
+      "samples": [
+        "125",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "123": {
+    "inputs": {
+      "sampler_name": "res_multistep"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "124": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1.0,
+      "model": [
+        "127",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "125": {
+    "inputs": {
+      "noise": [
+        "129",
+        0
+      ],
+      "guider": [
+        "126",
+        0
+      ],
+      "sampler": [
+        "123",
+        0
+      ],
+      "sigmas": [
+        "124",
+        0
+      ],
+      "latent_image": [
+        "136",
+        1
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "126": {
+    "inputs": {
+      "model": [
+        "127",
+        0
+      ],
+      "conditioning": [
+        "136",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  },
+  "127": {
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "128": {
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "129": {
+    "inputs": {
+      "noise_seed": 1220947456468
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "130": {
+    "inputs": {
+      "fps": 24.0,
+      "bit_depth": 8,
+      "images": [
+        "122",
+        0
+      ],
+      "audio": [
+        "121",
+        0
+      ]
+    },
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Create Video"
+    }
+  },
+  "131": {
+    "inputs": {
+      "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
+      "values.a": [
+        "132",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "132": {
+    "inputs": {
+      "value": 15.0
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Float (Duration)"
+    }
+  },
+  "136": {
+    "inputs": {
+      "prompt": [
+        "142",
+        0
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ],
+      "length": [
+        "131",
+        1
+      ],
+      "ref_image_size": "match",
+      "clip": [
+        "128",
+        0
+      ],
+      "vae": [
+        "119",
+        0
+      ],
+      "audio_vae": [
+        "120",
+        0
+      ],
+      "ref_images.ref_image_0": [
+        "137",
+        0
+      ],
+      "ref_images.ref_image_2": [
+        "137",
+        0
+      ],
+      "ref_video_audios.ref_video_audio_0": [
+        "161",
+        0
+      ],
+      "ref_videos.ref_video_0": [
+        "164",
+        1
+      ]
+    },
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "_meta": {
+      "title": "MiniMax H3 Reference to Video"
+    }
+  },
+  "137": {
+    "inputs": {
+      "image": "SolAttn_H3_00005.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "141": {
+    "inputs": {
+      "audio": "Voltage Bow (Heavier 808 Bass).m4a"
+    },
+    "class_type": "LoadAudio",
+    "_meta": {
+      "title": "Load Audio"
+    }
+  },
+  "142": {
+    "inputs": {
+      "value": "\"Cinematic, hyper-detailed 8K macro-wide view inside a subterranean ocean abyss. The camera pushes in with slow, steady amplitude through a field of millions of floating bioluminescent micro-plankton glowing in soft cyan. A colossal cyber-organic leviathan whale glides forward from the dark indigo void, its skin patterned with intricate turquoise and violet neural bioluminescence channels. As the whale emits a deep harmonic song, the light channels across its throat and ventral pleats flare with intense pulse-reactive brightness, casting volumetric turquoise light beams through the crystalline water. Delicate glass jellyfish flash in rhythmic counterpoint. Deep resonant whale vocalizations, soothing sub-bass ocean rumble, ambient crystal glass harmonies.\""
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "music prompt"
+    }
+  },
+  "161": {
+    "inputs": {
+      "start_time": 0.0,
+      "end_time": 0.25,
+      "audio": [
+        "141",
+        0
+      ]
+    },
+    "class_type": "AudioTrim",
+    "_meta": {
+      "title": "Audio Trim \u26a1\ud83c\udd61\ud83c\udd5e\ud83c\udd63\ud83c\udd58"
+    }
+  },
+  "164": {
+    "inputs": {
+      "strength": 1.0,
+      "invert": false,
+      "subtract_original": 0.0,
+      "grow_with_blur": 0.6,
+      "particle_count": 600,
+      "particle_lifetime": 4.0,
+      "wind_strength": 0.0,
+      "wind_direction": 0.0,
+      "gravity": 0.0,
+      "warmup_period": 0,
+      "start_frame": 0,
+      "end_frame": 0,
+      "respect_mask_boundary": false,
+      "emission_strength": 1.0,
+      "well_strength_multiplier": 1.0,
+      "masks": [
+        "171",
+        0
+      ],
+      "emitters": [
+        "165",
+        0
+      ]
+    },
+    "class_type": "ParticleEmissionMask",
+    "_meta": {
+      "title": "Particle Emission Mask \u26a1\ud83c\udd61\ud83c\udd5e\ud83c\udd63\ud83c\udd58"
+    }
+  },
+  "165": {
+    "inputs": {
+      "emitter_x": 0.5,
+      "emitter_y": 0.5,
+      "particle_direction": 0.0,
+      "particle_spread": 30.0,
+      "particle_size": 17.4,
+      "particle_speed": 330.0,
+      "emission_rate": 10.0,
+      "color": "(255,255,255)",
+      "initial_plume": 0.02,
+      "start_frame": 0,
+      "end_frame": 185,
+      "emission_radius": 0.1,
+      "emitter_modulation": [
+        "166",
+        0
+      ]
+    },
+    "class_type": "ParticleEmitter",
+    "_meta": {
+      "title": "Particle Emitter \u26a1\ud83c\udd61\ud83c\udd5e\ud83c\udd63\ud83c\udd58"
+    }
+  },
+  "166": {
+    "inputs": {
+      "start_frame": 0,
+      "end_frame": 0,
+      "effect_duration": 0,
+      "temporal_easing": "linear",
+      "palindrome": false,
+      "random": false,
+      "target_emission_rate": 50.0,
+      "feature": [
+        "167",
+        0
+      ]
+    },
+    "class_type": "EmitterEmissionRateModulation",
+    "_meta": {
+      "title": "Emitter Emission Rate Modulation \u26a1\ud83c\udd61\ud83c\udd5e\ud83c\udd63\ud83c\udd58"
+    }
+  },
+  "167": {
+    "inputs": {
+      "extraction_method": "amplitude_envelope",
+      "frame_rate": [
+        "168",
+        0
+      ],
+      "frame_count": [
+        "168",
+        2
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ],
+      "audio": [
+        "161",
+        0
+      ]
+    },
+    "class_type": "AudioFeatureExtractor",
+    "_meta": {
+      "title": "Audio Feature Extractor \u26a1\ud83c\udd61\ud83c\udd5e\ud83c\udd63\ud83c\udd58"
+    }
+  },
+  "168": {
+    "inputs": {
+      "frame_rate": 24.0,
+      "seconds": 10.0,
+      "frames": 0
+    },
+    "class_type": "CosmicCrafterVideoTiming",
+    "_meta": {
+      "title": "CosmicCrafter Video Timing"
+    }
+  },
+  "170": {
+    "inputs": {
+      "images": [
+        "164",
+        1
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "171": {
+    "inputs": {
+      "audio": [
+        "161",
+        0
+      ],
+      "frame_rate": [
+        "168",
+        0
+      ],
+      "width": [
+        "115",
+        0
+      ],
+      "height": [
+        "115",
+        1
+      ]
+    },
+    "class_type": "EmptyMaskFromAudio",
+    "_meta": {
+      "title": "Mask batch sized from the audio"
+    }
+  }
+}

@@ -293,10 +293,11 @@ function drawLetterboxedThumbnail(ctx, img, x, y, w, h) {
 }
 
 function getHeaderMetrics(node) {
-    // 4 inputs on left (y: 30, 50, 70, 90), 3 outputs on right (y: 30, 50, 70)
-    // Connection bay completes cleanly at y = 104
-    const slotAreaBottom = 104;
-    const headerStartY = 112;
+    const inputCount = Array.isArray(node?.inputs) ? node.inputs.length : 4;
+    const outputCount = Array.isArray(node?.outputs) ? node.outputs.length : 3;
+    const maxSlots = Math.max(inputCount, outputCount, 4);
+    const slotAreaBottom = Math.max(104, 30 + maxSlots * 20 + 4);
+    const headerStartY = slotAreaBottom + 8;
 
     const tabY = headerStartY;
     const tabH = 26;
@@ -316,7 +317,7 @@ function getHeaderMetrics(node) {
     const baseRibbonH = Math.max(65, (node?.properties?._timelineHeight || 88));
     const ribbonH = baseRibbonH + inspectorH;
 
-    const totalHeaderBottom = node?._h3_show_timeline ? (ribbonY + ribbonH + 8) : (presetY + presetH + 8);
+    const totalHeaderBottom = ribbonY + ribbonH + 8;
 
     return {
         slotAreaBottom,
@@ -573,8 +574,8 @@ function applyTabFilter(node, activeTab) {
 
     sanitizeNodeSlots(node);
 
-    const showTimeline = (activeTab === "core" || activeTab === "directing" || activeTab === "all");
-    node._h3_show_timeline = showTimeline;
+    // The timeline ribbon and reference tray are the core Director Canvas and must ALWAYS be visible across all tabs
+    node._h3_show_timeline = true;
 
     const metrics = getHeaderMetrics(node);
     node.widgets_start_y = metrics.totalHeaderBottom;
@@ -654,11 +655,20 @@ function applyTabFilter(node, activeTab) {
         }
     }
 
-    const minWidth = 660;
-    const computedSize = node.computeSize();
-    const newWidth = Math.max(node.size[0] || minWidth, minWidth);
-    const targetHeight = Math.min(Math.max(computedSize[1] || 480, metrics.totalHeaderBottom + 120), 850);
-    node.setSize([newWidth, targetHeight]);
+    const minWidth = 720;
+    let computedH = 480;
+    try {
+        if (typeof node.computeSize === "function") {
+            const cs = node.computeSize();
+            if (cs && typeof cs[1] === "number") computedH = cs[1];
+        }
+    } catch (_) {}
+    const newWidth = Math.max(node.size?.[0] || minWidth, minWidth);
+    const neededHeight = Math.max(computedH, metrics.totalHeaderBottom + 160);
+    const targetHeight = Math.max(node.size?.[1] || neededHeight, neededHeight);
+    if (typeof node.setSize === "function") {
+        node.setSize([newWidth, targetHeight]);
+    }
 
     if (typeof node.onResize === "function") {
         node.onResize(node.size);
@@ -702,7 +712,9 @@ app.registerExtension({
                 window.addEventListener("drop", async (e) => {
                     if (!e.dataTransfer?.files?.length) return;
                     const file = e.dataTransfer.files[0];
-                    if (!file.type.startsWith("image/")) return;
+                    const isImage = file.type.startsWith("image/") || /\.(png|jpe?g|webp|bmp)$/i.test(file.name);
+                    const isAudio = file.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|m4a|aac)$/i.test(file.name);
+                    if (!isImage && !isAudio) return;
 
                     const canvas = app.canvas;
                     if (!canvas) return;
@@ -710,7 +722,8 @@ app.registerExtension({
 
                     const nodes = canvas.graph?._nodes || [];
                     for (let n of nodes) {
-                        if (!TARGET_NODES.has(n.type)) continue;
+                        const nType = n.type || n.comfyClass;
+                        if (!TARGET_NODES.has(nType)) continue;
                         const nx = n.pos[0];
                         const ny = n.pos[1];
                         const nw = n.size[0];
@@ -720,6 +733,25 @@ app.registerExtension({
                             const relX = pos[0] - nx;
                             const relY = pos[1] - ny;
 
+                            if (isAudio) {
+                                e.preventDefault();
+                                const name = await uploadImageFile(file);
+                                if (name) {
+                                    const audioW = n.widgets?.find(w => w.name === "custom_audio_file");
+                                    if (audioW) {
+                                        audioW.value = name;
+                                        if (audioW.options?.values && !audioW.options.values.includes(name)) {
+                                            audioW.options.values.push(name);
+                                        }
+                                    }
+                                    n._h3_active_tab = "audio";
+                                    applyTabFilter(n, "audio");
+                                    safeSetDirty(n);
+                                }
+                                return;
+                            }
+
+                            // If image: check S1 anchor box first
                             const s1Box = (n._shotBoxes || [])[0];
                             if (s1Box && relX >= s1Box.x && relX <= s1Box.x + s1Box.w && relY >= s1Box.y && relY <= s1Box.y + s1Box.h) {
                                 e.preventDefault();
@@ -732,6 +764,7 @@ app.registerExtension({
                                 return;
                             }
 
+                            // Check reference tray boxes (<Picture 1>..<Picture 4>)
                             for (let rb of (n._refBoxes || [])) {
                                 if (relX >= rb.x && relX <= rb.x + rb.w && relY >= rb.y && relY <= rb.y + rb.h) {
                                     e.preventDefault();
@@ -748,6 +781,34 @@ app.registerExtension({
                                     }
                                     return;
                                 }
+                            }
+
+                            // If dropped anywhere on the timeline ribbon or reference tray:
+                            const m = getHeaderMetrics(n);
+                            if (relY >= m.refTrayY && relY <= m.ribbonY + m.ribbonH) {
+                                e.preventDefault();
+                                const name = await uploadImageFile(file);
+                                if (name) {
+                                    const ffW = n.widgets?.find(w => w.name === "first_frame_path");
+                                    if (ffW && !ffW.value) {
+                                        ffW.value = name;
+                                    } else {
+                                        const refW = n.widgets?.find(w => w.name === "ref_paths");
+                                        if (refW) {
+                                            let current = {};
+                                            try { current = JSON.parse(refW.value || "{}"); } catch(_) {}
+                                            for (let s = 1; s <= 4; s++) {
+                                                if (!current[String(s)]) {
+                                                    current[String(s)] = name;
+                                                    break;
+                                                }
+                                            }
+                                            refW.value = JSON.stringify(current);
+                                        }
+                                    }
+                                    safeSetDirty(n);
+                                }
+                                return;
                             }
                         }
                     }

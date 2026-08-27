@@ -1,0 +1,333 @@
+{
+  "last_node_id": 15,
+  "last_link_id": 15,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        100,
+        100
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "widgets_values": [
+        "example.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadAudio",
+      "pos": [
+        100,
+        300
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "widgets_values": [
+        "example.wav"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SAMLoader",
+      "pos": [
+        100,
+        500
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAM_MODEL",
+          "type": "SAM_MODEL",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "widgets_values": [
+        "sam_vit_h_4b8939.pth",
+        "cuda"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SAMDetectorCombined",
+      "pos": [
+        400,
+        100
+      ],
+      "inputs": [
+        {
+          "name": "sam_model",
+          "type": "SAM_MODEL",
+          "link": 4
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "widgets_values": [
+        0.5,
+        8.0,
+        "true",
+        "[]"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "InvertMask",
+      "pos": [
+        700,
+        100
+      ],
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "AudioFeatureExtractor",
+      "pos": [
+        400,
+        300
+      ],
+      "inputs": [
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "widgets_values": [
+        "rms",
+        24
+      ]
+    },
+    {
+      "id": 7,
+      "type": "FlexAudioVisualizerLine",
+      "pos": [
+        700,
+        300
+      ],
+      "inputs": [
+        {
+          "name": "feature",
+          "type": "FEATURE",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "widgets_values": [
+        512,
+        512,
+        24,
+        "white",
+        "black",
+        10
+      ]
+    },
+    {
+      "id": 8,
+      "type": "MaskMath",
+      "pos": [
+        1000,
+        200
+      ],
+      "inputs": [
+        {
+          "name": "mask1",
+          "type": "MASK",
+          "link": 6
+        },
+        {
+          "name": "mask2",
+          "type": "MASK",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "widgets_values": [
+        "multiply"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "MiniMaxH3ExistingVideoMaskedContext",
+      "pos": [
+        1300,
+        100
+      ],
+      "inputs": [
+        {
+          "name": "video",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            11
+          ]
+        }
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      4,
+      1,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      0,
+      6,
+      0,
+      "AUDIO"
+    ],
+    [
+      4,
+      3,
+      0,
+      4,
+      0,
+      "SAM_MODEL"
+    ],
+    [
+      5,
+      4,
+      0,
+      5,
+      0,
+      "MASK"
+    ],
+    [
+      6,
+      5,
+      0,
+      8,
+      0,
+      "MASK"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      0,
+      "FEATURE"
+    ],
+    [
+      9,
+      7,
+      1,
+      8,
+      1,
+      "MASK"
+    ],
+    [
+      2,
+      1,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      8,
+      0,
+      9,
+      1,
+      "MASK"
+    ]
+  ]
+}

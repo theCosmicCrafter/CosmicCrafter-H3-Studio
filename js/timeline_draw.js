@@ -112,7 +112,7 @@ export function drawBlock(ctx, color, label, r, ghost, media, node, clip, select
 export function drawGhost(ctx, c, s, node, selected) {
     if (c.audio_off) return; // the separated audio band was deleted
     const g = ghostRect(c, s);
-    drawBlock(ctx, COLORS.audio, `♪ ${c.id}`, g, true, null, node, c, selected);
+    drawBlock(ctx, COLORS.audio, `AUD ${c.id}`, g, true, null, node, c, selected);
     const m = c.file ? ensureMedia(node, c) : null;
     if (m?.buffer) paintWaveform(ctx, m, g, true, node, c);
     const bx = g.x + 8;
@@ -128,7 +128,7 @@ export function drawGhost(ctx, c, s, node, selected) {
     ctx.font = "9px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(c.audio_link ? "🔗" : "⛓", bx, by + 0.5);
+    ctx.fillText(c.audio_link ? "L" : "U", bx, by + 0.5);
 }
 
 const ENV_COLOR = "#66ff66";

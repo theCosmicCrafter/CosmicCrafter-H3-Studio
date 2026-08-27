@@ -58,11 +58,25 @@ from .h3_streaming_vhs import (
 )
 from .h3_auto_crop32 import MiniMaxH3CropTo32, MiniMaxH3StartCanvasSelector
 from .h3_timing import crossfade_plan
+from .h3_director_routes import register_routes as register_director_routes
+from .h3_audio_reactive_mask import (
+    MiniMaxH3MaskEmitter,
+    MiniMaxH3SourceToLatent,
+    MiniMaxH3AudioCurveToMask,
+    MiniMaxH3MaskComposite,
+    MiniMaxH3LatentNoiseMask,
+)
+from .h3_beat_postfx import (
+    MiniMaxH3BeatChromaticAberration,
+    MiniMaxH3BeatBloom,
+)
 from .h3_audio_reactive import (
     MiniMaxH3AudioAnalyze,
     MiniMaxH3AudioReactiveDenoise,
     MiniMaxH3AudioCurveRemap,
 )
+from .cosmic_crafter_video_timing import CosmicCrafterVideoTiming
+from .h3_promptor import H3_Promptor, H3_Vision_Analyzer
 
 try:
     import torchaudio
@@ -112,8 +126,10 @@ def _resize(image, width, height, crop):
 def _target_metrics(video):
     """Extract (width, height, frame_count) in pixel units from an H3 video latent [B, C, T, H, W]."""
     steps = int(video.shape[2])
-    height = int(video.shape[3]) * 8
-    width = int(video.shape[4]) * 8
+    # H3's video VAE is /16 spatially (core builds latents at width//16, height//16),
+    # matching every other latent->pixel conversion in this pack.
+    height = int(video.shape[3]) * 16
+    width = int(video.shape[4]) * 16
     frame_count = _pixel_frames(steps)
     return width, height, frame_count
 
@@ -1483,6 +1499,378 @@ class MiniMaxH3Timeline:
 
 
 
+
+
+
+class CosmicCrafterDirector:
+    """CosmicCrafter NLE Director timeline for H3.
+
+    Consumes the timeline the JS frontend serialises and turns it into H3
+    conditioning: image segments become keyframes, audio segments become audio
+    refs, and motion segments become motion-context guides.
+
+    The frontend mirrors per-segment values into three parallel CSV widgets
+    (``local_prompts`` / ``segment_lengths`` / ``guide_strength``) alongside the
+    ``timeline_data`` JSON.  Values embedded in the JSON win; the CSVs are the
+    fallback for graphs saved by older frontend builds.
+    """
+
+    #: Widgets the frontend owns purely for drawing the timeline.  They are
+    #: declared so the JS can find them, but they do not affect generation.
+    UI_ONLY_INPUTS = ("display_mode", "img_compression")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning stream"}),
+                "video vae": ("VAE", {"tooltip": "MiniMax H3 Video VAE"}),
+                "audio vae": ("VAE", {"tooltip": "MiniMax H3 Audio VAE"}),
+                "latent": ("LATENT", {"tooltip": "Target H3 AV latent"}),
+                "timeline_data": ("STRING", {"default": '{"segments":[], "audioSegments":[], "motionSegments":[]}', "multiline": False}),
+                "local_prompts": ("STRING", {"default": "", "multiline": False, "tooltip": "Per-segment prompts joined by ' | '. Encoded when a clip input is connected."}),
+                "segment_lengths": ("STRING", {"default": "", "multiline": False, "tooltip": "Comma-separated per-segment lengths in frames."}),
+                "guide_strength": ("STRING", {"default": "", "multiline": False, "tooltip": "Comma-separated per-segment keyframe strengths."}),
+                "audio_data": ("STRING", {"default": "", "multiline": False, "tooltip": "Optional audio-track JSON; merged with timeline_data.audioSegments."}),
+                "use_custom_audio": ("BOOLEAN", {"default": False, "tooltip": "Emit the timeline's audio segments as H3 audio refs."}),
+                "use_custom_motion": ("BOOLEAN", {"default": False, "tooltip": "Emit the timeline's motion segments as motion-context guides."}),
+                "inpaint_audio": ("BOOLEAN", {"default": False, "tooltip": "Mark audio refs as inpaint targets so the model rebuilds around them."}),
+                "override_audio": ("BOOLEAN", {"default": False, "tooltip": "Replace any audio already on the conditioning instead of appending."}),
+                "epsilon": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01, "tooltip": "Minimum keyframe strength; keeps weak guides from vanishing entirely."}),
+                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
+                "display_mode": (["frames", "seconds"], {"default": "frames", "tooltip": "Timeline ruler units (UI only)."}),
+                "custom_width": ("INT", {"default": 0, "min": 0, "max": 8192, "tooltip": "Override keyframe encode width. 0 = derive from the latent."}),
+                "custom_height": ("INT", {"default": 0, "min": 0, "max": 8192, "tooltip": "Override keyframe encode height. 0 = derive from the latent."}),
+                "resize_method": (["stretch to fit", "maintain aspect ratio"], {"default": "stretch to fit"}),
+                "divisible_by": ("INT", {"default": 16, "min": 1, "max": 256, "tooltip": "Round the encode canvas to this multiple. H3's VAE needs 16."}),
+                "img_compression": ("INT", {"default": 0, "min": 0, "max": 100, "tooltip": "Timeline thumbnail quality (UI only)."}),
+                "start_frame": ("INT", {"default": 0, "tooltip": "First frame of the active timeline range."}),
+                "end_frame": ("INT", {"default": 120, "tooltip": "Last frame of the active timeline range."}),
+                "duration_frames": ("INT", {"default": 120, "tooltip": "Length of the active range; used when end_frame is unset."}),
+            },
+            "optional": {
+                "global_prompt": ("STRING", {"multiline": True, "default": ""}),
+                "clip": ("CLIP", {"tooltip": "Connect to encode global_prompt / local_prompts into per-segment conditioning."}),
+            }
+        }
+
+    RETURN_TYPES = ("CONDITIONING",)
+    RETURN_NAMES = ("conditioning",)
+    FUNCTION = "apply"
+    CATEGORY = "conditioning/minimax"
+    DESCRIPTION = (
+        "Turn the CosmicCrafter timeline into H3 conditioning: image keyframes, "
+        "audio refs and motion guides, clipped to the active frame range."
+    )
+
+    # ------------------------------------------------------------------
+    # Timeline parsing helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_csv_floats(raw):
+        """Parse the frontend's comma-separated float widgets."""
+        out = []
+        for chunk in str(raw or "").split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            try:
+                out.append(float(chunk))
+            except ValueError:
+                continue
+        return out
+
+    @staticmethod
+    def _parse_csv_ints(raw):
+        return [int(v) for v in CosmicCrafterDirector._parse_csv_floats(raw)]
+
+    @staticmethod
+    def _parse_prompts(raw):
+        """Split the frontend's ' | '-joined per-segment prompt widget."""
+        text = str(raw or "")
+        if not text.strip():
+            return []
+        return [part.strip() for part in text.split("|")]
+
+    @staticmethod
+    def _active_range(start_frame, end_frame, duration_frames, frame_count):
+        """Resolve the active timeline window, clamped to the latent length.
+
+        ``end_frame`` wins when it is a sane value; otherwise the range is
+        derived from ``duration_frames``.  An empty or inverted range falls back
+        to the whole clip rather than silently dropping every segment.
+        """
+
+        start = max(0, int(start_frame or 0))
+        end = int(end_frame or 0)
+        duration = int(duration_frames or 0)
+
+        if end <= start:
+            end = start + duration if duration > 0 else frame_count
+
+        start = min(start, max(0, frame_count - 1))
+        end = min(max(end, start + 1), frame_count)
+        return start, end
+
+    @staticmethod
+    def _encode_canvas(width, height, custom_width, custom_height,
+                       resize_method, divisible_by):
+        """Resolve the canvas keyframes are encoded at.
+
+        ``maintain aspect ratio`` fits the source canvas inside the override box
+        instead of stretching to it; the result is always rounded to
+        ``divisible_by`` because H3's VAE cannot encode off-grid sizes.
+        """
+
+        target_w = int(custom_width) or int(width)
+        target_h = int(custom_height) or int(height)
+
+        if resize_method == "maintain aspect ratio" and width > 0 and height > 0:
+            scale = min(target_w / float(width), target_h / float(height))
+            target_w = int(round(width * scale))
+            target_h = int(round(height * scale))
+
+        step = max(1, int(divisible_by))
+        target_w = max(step, int(round(target_w / step)) * step)
+        target_h = max(step, int(round(target_h / step)) * step)
+        return target_w, target_h
+
+    # ------------------------------------------------------------------
+
+    def apply(self, conditioning, latent, timeline_data, **kwargs):
+        import base64
+        import io as _io
+        import json
+        import os
+
+        import folder_paths
+        import node_helpers
+        import numpy as np
+        import torch
+        from PIL import Image
+        # torchaudio is imported lazily inside the audio branch: a timeline with
+        # no audio segments should not hard-fail when it is unavailable.
+
+        vae = kwargs.get("video vae")
+        audio_vae = kwargs.get("audio vae")
+        fps = max(1, int(kwargs.get("frame_rate") or 24))
+        epsilon = float(kwargs.get("epsilon", 0.0) or 0.0)
+        use_custom_audio = bool(kwargs.get("use_custom_audio", False))
+        use_custom_motion = bool(kwargs.get("use_custom_motion", False))
+        inpaint_audio = bool(kwargs.get("inpaint_audio", False))
+        override_audio = bool(kwargs.get("override_audio", False))
+        clip = kwargs.get("clip")
+        global_prompt = str(kwargs.get("global_prompt", "") or "")
+
+        _ensure_h3_runtime_patches()
+
+        try:
+            state = json.loads(timeline_data or "{}")
+        except (TypeError, ValueError):
+            _LOG.warning("CosmicCrafterDirector: timeline_data is not valid JSON; "
+                         "treating the timeline as empty")
+            state = {}
+
+        segments = state.get("segments") or []
+        audio_segments = list(state.get("audioSegments") or [])
+        motion_segments = state.get("motionSegments") or []
+
+        # audio_data is a separate widget the frontend uses for the audio track;
+        # merge it so either source populates the audio refs.
+        if kwargs.get("audio_data"):
+            try:
+                extra = json.loads(kwargs["audio_data"])
+            except (TypeError, ValueError):
+                extra = None
+            if isinstance(extra, dict):
+                audio_segments.extend(extra.get("audioSegments") or [])
+            elif isinstance(extra, list):
+                audio_segments.extend(extra)
+
+        target = _video_from_latent(latent)
+        width, height, frame_count = _target_metrics(target)
+
+        start_frame, end_frame = self._active_range(
+            kwargs.get("start_frame"), kwargs.get("end_frame"),
+            kwargs.get("duration_frames"), frame_count,
+        )
+
+        enc_w, enc_h = self._encode_canvas(
+            width, height,
+            kwargs.get("custom_width", 0), kwargs.get("custom_height", 0),
+            kwargs.get("resize_method", "stretch to fit"),
+            kwargs.get("divisible_by", 16),
+        )
+
+        # Parallel CSV widgets from the frontend, used when the JSON omits a value.
+        csv_strengths = self._parse_csv_floats(kwargs.get("guide_strength"))
+        csv_lengths = self._parse_csv_ints(kwargs.get("segment_lengths"))
+        csv_prompts = self._parse_prompts(kwargs.get("local_prompts"))
+
+        def _resize(img, target_w, target_h):
+            import torch.nn.functional as F
+            img = img.permute(0, 3, 1, 2)
+            img = F.interpolate(img, size=(target_h, target_w),
+                                mode="bilinear", align_corners=False)
+            return img.permute(0, 2, 3, 1)
+
+        def _load_image_tensor(seg):
+            """Load a segment's still, from disk or an inline data URI."""
+            if seg.get("imageFile"):
+                file_path = os.path.join(folder_paths.get_input_directory(), seg["imageFile"])
+                if os.path.exists(file_path):
+                    img = Image.open(file_path).convert("RGB")
+                    img = np.array(img).astype(np.float32) / 255.0
+                    return torch.from_numpy(img)[None, ]
+                _LOG.warning("CosmicCrafterDirector: image %s not found", seg["imageFile"])
+            b64_str = seg.get("imageB64", "")
+            if b64_str and b64_str.startswith("data:image"):
+                idx_b64 = b64_str.find(",")
+                if idx_b64 != -1:
+                    img_bytes = base64.b64decode(b64_str[idx_b64 + 1:])
+                    img = Image.open(_io.BytesIO(img_bytes)).convert("RGB")
+                    img = np.array(img).astype(np.float32) / 255.0
+                    return torch.from_numpy(img)[None, ]
+            return None
+
+        def _in_range(start, length):
+            """Keep segments that overlap the active window at all."""
+            return start < end_frame and (start + max(1, length)) > start_frame
+
+        def _segment_strength(seg, index):
+            raw = seg.get("guideStrength")
+            if raw is None and index < len(csv_strengths):
+                raw = csv_strengths[index]
+            try:
+                strength = 1.0 if raw is None else float(raw)
+            except (TypeError, ValueError):
+                strength = 1.0
+            # epsilon is a floor, not an offset: a guide the user dialled down
+            # should weaken, never disappear.
+            return max(epsilon, min(1.0, strength))
+
+        def _segment_length(seg, index, default=1):
+            raw = seg.get("length")
+            if raw is None and index < len(csv_lengths):
+                raw = csv_lengths[index]
+            try:
+                return max(1, int(raw))
+            except (TypeError, ValueError):
+                return default
+
+        # ---------------- image keyframes ----------------
+        keyframes = []
+        for index, seg in enumerate(segments):
+            if seg.get("type") == "text":
+                continue
+            start = int(seg.get("start") or 0)
+            length = _segment_length(seg, index)
+            if not _in_range(start, length):
+                continue
+
+            img_tensor = _load_image_tensor(seg)
+            if img_tensor is None or vae is None:
+                continue
+
+            enc = vae.encode(_resize(img_tensor, enc_w, enc_h))
+            entry = {
+                # Frame indices are relative to the active range so the clip the
+                # sampler sees lines up with what the timeline shows.
+                "resolved_frame_index": max(0, start - start_frame),
+                "latent": enc[:, :, :1],
+                "strength": _segment_strength(seg, index),
+            }
+
+            prompt = seg.get("prompt")
+            if prompt is None and index < len(csv_prompts):
+                prompt = csv_prompts[index]
+            if prompt and clip is not None:
+                tokens = clip.tokenize(prompt)
+                entry["prompt_conditioning"] = clip.encode_from_tokens_scheduled(tokens)
+            elif prompt:
+                # No CLIP wired up: keep the text so downstream nodes can use it
+                # rather than dropping the user's per-segment prompt silently.
+                entry["prompt"] = prompt
+
+            keyframes.append(entry)
+
+        # ---------------- audio refs ----------------
+        refs = []
+        if use_custom_audio:
+            for seg in audio_segments:
+                audio_file = seg.get("audioFile", "")
+                if not audio_file or audio_vae is None:
+                    continue
+                file_path = os.path.join(folder_paths.get_input_directory(), audio_file)
+                if not os.path.exists(file_path):
+                    _LOG.warning("CosmicCrafterDirector: audio %s not found", audio_file)
+                    continue
+
+                start = int(seg.get("start") or 0)
+                length = _segment_length(seg, 0, default=22)
+                if not _in_range(start, length):
+                    continue
+
+                try:
+                    import torchaudio
+                    aud, sr = torchaudio.load(file_path)
+                except Exception as exc:  # unreadable media must not kill the graph
+                    _LOG.warning("CosmicCrafterDirector: audio load error for %s: %s",
+                                 audio_file, exc)
+                    continue
+
+                aud_dict = {"waveform": aud.unsqueeze(0), "sample_rate": sr}
+                z, rt = _encode_audio_window(audio_vae, aud_dict, length / float(fps))
+                refs.append({
+                    "kind": "audio",
+                    "ref_audio_t": rt,
+                    "audio_latent": z,
+                    "resolved_frame_index": max(0, start - start_frame) + length,
+                    "inpaint": inpaint_audio,
+                })
+
+        # ---------------- motion guides ----------------
+        motion_guides = []
+        if use_custom_motion:
+            for index, seg in enumerate(motion_segments):
+                start = int(seg.get("start") or 0)
+                length = _segment_length(seg, index, default=17)
+                if not _in_range(start, length):
+                    continue
+                motion_guides.append({
+                    "resolved_frame_index": max(0, start - start_frame),
+                    "length": length,
+                    "strength": _segment_strength(seg, index),
+                    "mode": seg.get("mode", "guide"),
+                })
+
+        # ---------------- assemble conditioning ----------------
+        out = conditioning
+
+        if global_prompt and clip is not None:
+            tokens = clip.tokenize(global_prompt)
+            out = clip.encode_from_tokens_scheduled(tokens)
+        elif global_prompt:
+            out = node_helpers.conditioning_set_values(out, {"minimax_global_prompt": global_prompt})
+
+        if keyframes:
+            out = node_helpers.conditioning_set_values(out, {"minimax_keyframes": keyframes})
+        if motion_guides:
+            out = node_helpers.conditioning_set_values(out, {"minimax_motion_guides": motion_guides})
+        if refs:
+            # override_audio replaces whatever audio the upstream graph attached;
+            # otherwise refs accumulate alongside it.
+            out = node_helpers.conditioning_set_values(
+                out, {"minimax_refs": refs}, append=not override_audio,
+            )
+
+        return (out,)
+# The Director's timeline UI is backed by HTTP endpoints; registration is a
+# no-op when this pack is imported outside a running ComfyUI server.
+register_director_routes()
+
+
 NODE_CLASS_MAPPINGS = {
     "MiniMaxH3MotionContext": MiniMaxH3MotionContext,
     "MiniMaxH3MotionContextTrim": MiniMaxH3MotionContextTrim,
@@ -1509,6 +1897,13 @@ NODE_CLASS_MAPPINGS = {
     "MiniMaxH3AudioReactiveDenoise": MiniMaxH3AudioReactiveDenoise,
     "CosmicCrafterDirector": CosmicCrafterDirector,
     "MiniMaxH3AudioCurveRemap": MiniMaxH3AudioCurveRemap,
+    "MiniMaxH3MaskEmitter": MiniMaxH3MaskEmitter,
+    "MiniMaxH3SourceToLatent": MiniMaxH3SourceToLatent,
+    "MiniMaxH3AudioCurveToMask": MiniMaxH3AudioCurveToMask,
+    "MiniMaxH3MaskComposite": MiniMaxH3MaskComposite,
+    "MiniMaxH3LatentNoiseMask": MiniMaxH3LatentNoiseMask,
+    "MiniMaxH3BeatChromaticAberration": MiniMaxH3BeatChromaticAberration,
+    "MiniMaxH3BeatBloom": MiniMaxH3BeatBloom,
     "MiniMaxH3Timeline": MiniMaxH3Timeline,
     "MiniMaxH3CustomAudio": MiniMaxH3CustomAudio,
     "MiniMaxH3CustomVideo": MiniMaxH3CustomVideo,
@@ -1516,9 +1911,20 @@ NODE_CLASS_MAPPINGS = {
     "CosmicCrafterAudioAnalyze": MiniMaxH3AudioAnalyze,
     "CosmicCrafterAudioReactiveDenoise": MiniMaxH3AudioReactiveDenoise,
     "CosmicCrafterAudioCurveRemap": MiniMaxH3AudioCurveRemap,
+    "CosmicCrafterMaskEmitter": MiniMaxH3MaskEmitter,
+    "CosmicCrafterSourceToLatent": MiniMaxH3SourceToLatent,
+    "CosmicCrafterAudioCurveToMask": MiniMaxH3AudioCurveToMask,
+    "CosmicCrafterMaskComposite": MiniMaxH3MaskComposite,
+    "CosmicCrafterLatentNoiseMask": MiniMaxH3LatentNoiseMask,
     "CosmicCrafterSongMaskedAVContext": MiniMaxH3SongMaskedAVContext,
     "CosmicCrafterStreamLiveMusicVideoToVHS": MiniMaxH3StreamLiveMusicVideoToVHS,
+    "CosmicCrafterVideoTiming": CosmicCrafterVideoTiming,
+    "H3_Promptor": H3_Promptor,
+    "H3_Vision_Analyzer": H3_Vision_Analyzer,
+    "CosmicH3Promptor": H3_Promptor,
+    "CosmicH3VisionAnalyzer": H3_Vision_Analyzer,
 }
+
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicCrafterDirector": "CosmicCrafter Director",
     "MiniMaxH3MotionContext": "H3 Motion Context",
@@ -1545,6 +1951,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MiniMaxH3AudioAnalyze": "H3 Audio Analyze",
     "MiniMaxH3AudioReactiveDenoise": "H3 Audio-Reactive Denoise",
     "MiniMaxH3AudioCurveRemap": "H3 Audio Curve Remap",
+    "MiniMaxH3MaskEmitter": "H3 Mask Emitter",
+    "MiniMaxH3SourceToLatent": "H3 Source To Latent (AV)",
+    "MiniMaxH3AudioCurveToMask": "H3 Audio Curve To Mask",
+    "MiniMaxH3MaskComposite": "H3 Mask Composite",
+    "MiniMaxH3LatentNoiseMask": "H3 Latent Noise Mask (AV)",
+    "MiniMaxH3BeatChromaticAberration": "H3 Beat Chromatic Aberration",
+    "MiniMaxH3BeatBloom": "H3 Beat Bloom",
     "MiniMaxH3Timeline": "H3 Timeline Editor",
     "MiniMaxH3CustomAudio": "H3 Custom Audio",
     "MiniMaxH3CustomVideo": "H3 Custom Video",
@@ -1552,249 +1965,17 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicCrafterAudioAnalyze": "CosmicCrafter Audio Analyze",
     "CosmicCrafterAudioReactiveDenoise": "CosmicCrafter Audio-Reactive Denoise",
     "CosmicCrafterAudioCurveRemap": "CosmicCrafter Audio Curve Remap",
+    "CosmicCrafterMaskEmitter": "CosmicCrafter Mask Emitter",
+    "CosmicCrafterSourceToLatent": "CosmicCrafter Source To Latent (AV)",
+    "CosmicCrafterAudioCurveToMask": "CosmicCrafter Audio Curve To Mask",
+    "CosmicCrafterMaskComposite": "CosmicCrafter Mask Composite",
+    "CosmicCrafterLatentNoiseMask": "CosmicCrafter Latent Noise Mask (AV)",
     "CosmicCrafterSongMaskedAVContext": "CosmicCrafter Song Audio + Masked Video Context",
     "CosmicCrafterStreamLiveMusicVideoToVHS": "CosmicCrafter Stream Final Music Video to VHS",
+    "CosmicCrafterVideoTiming": "CosmicCrafter Video Timing",
+    "H3_Promptor": "Cosmic MiniMax-H3 Promptor (Dynamic LLM)",
+    "H3_Vision_Analyzer": "Cosmic MiniMax-H3 Vision Analyzer (Dynamic VLM)",
+    "CosmicH3Promptor": "Cosmic MiniMax-H3 Promptor",
+    "CosmicH3VisionAnalyzer": "Cosmic MiniMax-H3 Vision Analyzer",
 }
-
-
-
-class CosmicCrafterDirector:
-    """CosmicCrafter NLE Director Timeline for H3. Mirrors LTX WYSIWYG capabilities."""
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "conditioning": ("CONDITIONING", {"tooltip": "H3 conditioning stream"}),
-                "video vae": ("VAE", {"tooltip": "MiniMax H3 Video VAE"}),
-                "audio vae": ("VAE", {"tooltip": "MiniMax H3 Audio VAE"}),
-                "latent": ("LATENT", {"tooltip": "Target H3 AV latent"}),
-                "timeline_data": ("STRING", {"default": '{"segments":[], "audioSegments":[], "motionSegments":[]}', "multiline": False}),
-                "local_prompts": ("STRING", {"default": "", "multiline": False}),
-                "segment_lengths": ("STRING", {"default": "", "multiline": False}),
-                "guide_strength": ("STRING", {"default": "", "multiline": False}),
-                "audio_data": ("STRING", {"default": "", "multiline": False}),
-                "use_custom_audio": ("BOOLEAN", {"default": False}),
-                "use_custom_motion": ("BOOLEAN", {"default": False}),
-                "inpaint_audio": ("BOOLEAN", {"default": False}),
-                "override_audio": ("BOOLEAN", {"default": False}),
-                "epsilon": ("FLOAT", {"default": 0.1, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "frame_rate": ("INT", {"default": 24, "min": 1, "max": 120}),
-                "display_mode": (["frames", "seconds"], {"default": "frames"}),
-                "custom_width": ("INT", {"default": 0, "min": 0, "max": 8192}),
-                "custom_height": ("INT", {"default": 0, "min": 0, "max": 8192}),
-                "resize_method": (["stretch to fit", "maintain aspect ratio"], {"default": "stretch to fit"}),
-                "divisible_by": ("INT", {"default": 16, "min": 1, "max": 256}),
-                "img_compression": ("INT", {"default": 0, "min": 0, "max": 100}),
-                "start_frame": ("INT", {"default": 0}),
-                "end_frame": ("INT", {"default": 120}),
-                "duration_frames": ("INT", {"default": 120}),
-            },
-            "optional": {
-                "global_prompt": ("STRING", {"multiline": True, "default": ""}),
-            }
-        }
-
-    RETURN_TYPES = ("CONDITIONING",)
-    RETURN_NAMES = ("conditioning",)
-    FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
-
-    def apply(self, conditioning, latent, timeline_data, **kwargs):
-        vae = kwargs.get("video vae")
-        audio_vae = kwargs.get("audio vae")
-        fps = int(kwargs.get("frame_rate") or 24)
-        _ensure_h3_runtime_patches()
-
-        import json
-        import folder_paths
-        from PIL import Image
-        import io as _io
-        import os
-        import torch
-        import numpy as np
-        import base64
-        import node_helpers
-        import torchaudio
-
-        try:
-            state = json.loads(timeline_data or "{}")
-        except Exception:
-            state = {}
-
-        segments = state.get("segments") or []
-        audio_segments = state.get("audioSegments") or []
-        motion_segments = state.get("motionSegments") or []
-        
-        target = _video_from_latent(latent)
-        width, height, frame_count = _target_metrics(target)
-
-        def _resize(img, w, h, crop="disabled"):
-            import torch.nn.functional as F
-            img = img.permute(0, 3, 1, 2)
-            img = F.interpolate(img, size=(h, w), mode="bilinear", align_corners=False)
-            return img.permute(0, 2, 3, 1)
-
-        def _load_image_tensor(seg):
-            if seg.get("imageFile"):
-                file_path = os.path.join(folder_paths.get_input_directory(), seg["imageFile"])
-                if os.path.exists(file_path):
-                    img = Image.open(file_path).convert("RGB")
-                    img = np.array(img).astype(np.float32) / 255.0
-                    return torch.from_numpy(img)[None,]
-            b64_str = seg.get("imageB64", "")
-            if b64_str and b64_str.startswith("data:image"):
-                idx_b64 = b64_str.find(",")
-                if idx_b64 != -1:
-                    img_bytes = base64.b64decode(b64_str[idx_b64+1:])
-                    img = Image.open(_io.BytesIO(img_bytes)).convert("RGB")
-                    img = np.array(img).astype(np.float32) / 255.0
-                    return torch.from_numpy(img)[None,]
-            return None
-
-        keyframes = []
-        for idx_seg, seg in enumerate(segments):
-            start = int(seg.get("start") or 0)
-            img_tensor = _load_image_tensor(seg)
-            if img_tensor is not None and vae is not None:
-                enc = vae.encode(_resize(img_tensor, width, height, "disabled"))
-                keyframes.append({
-                    "resolved_frame_index": start,
-                    "latent": enc[:, :, :1],
-                })
-
-        refs = []
-        for seg in audio_segments:
-            file_path = os.path.join(folder_paths.get_input_directory(), seg.get("audioFile", ""))
-            if os.path.exists(file_path) and audio_vae is not None:
-                start = int(seg.get("start") or 0)
-                length = int(seg.get("length") or 22)
-                try:
-                    aud, sr = torchaudio.load(file_path)
-                    aud_dict = {"waveform": aud.unsqueeze(0), "sample_rate": sr}
-                    z, rt = _encode_audio_window(audio_vae, aud_dict, length / float(fps))
-                    refs.append({
-                        "kind": "audio",
-                        "ref_audio_t": rt,
-                        "audio_latent": z,
-                        "resolved_frame_index": start + length,
-                    })
-                except Exception as e:
-                    print(f"[CosmicCrafterDirector] Audio load error: {e}")
-        
-        out = conditioning
-        if keyframes:
-            out = node_helpers.conditioning_set_values(out, {"minimax_keyframes": keyframes})
-        if refs:
-            out = node_helpers.conditioning_set_values(out, {"minimax_refs": refs}, append=True)
-        return (out,)
-
-
-
-from server import PromptServer
-from aiohttp import web
-import os
-import folder_paths
-
-@PromptServer.instance.routes.get("/cosmic_crafter_director_check_file")
-async def cosmic_crafter_director_check_file(request):
-    filename = request.query.get("filename", "")
-    file_size = request.query.get("size", "")
-    if not filename:
-        return web.json_response({"exists": False})
-
-    upload_dir = folder_paths.get_input_directory()
-    temp_dir = os.path.join(upload_dir, "cosmiccrafter")
-    
-    possible_paths = [
-        os.path.join(temp_dir, filename),
-        os.path.join(upload_dir, filename)
-    ]
-    
-    found_path = None
-    for p in possible_paths:
-        if os.path.exists(p) and os.path.isfile(p):
-            found_path = p
-            break
-            
-    if not found_path:
-        return web.json_response({"exists": False})
-        
-    try:
-        actual_size = os.path.getsize(found_path)
-        if file_size and str(actual_size) == str(file_size):
-            return web.json_response({"exists": True, "path": found_path})
-        return web.json_response({"exists": True, "size_mismatch": True, "actual": actual_size, "expected": file_size})
-    except Exception as e:
-        return web.json_response({"exists": False, "error": str(e)})
-
-@PromptServer.instance.routes.post("/cosmic_crafter_director_upload_chunk")
-async def cosmic_crafter_director_upload_chunk(request):
-    post = await request.post()
-    chunk = post.get("chunk")
-    filename = post.get("filename")
-    index = int(post.get("index", 0))
-    total = int(post.get("total", 1))
-    
-    if not chunk or not filename:
-        return web.json_response({"error": "Missing chunk or filename"}, status=400)
-        
-    upload_dir = os.path.join(folder_paths.get_input_directory(), "cosmiccrafter")
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, filename)
-    
-    mode = "wb" if index == 0 else "ab"
-    with open(file_path, mode) as f:
-        f.write(chunk.file.read())
-        
-    if index == total - 1:
-        return web.json_response({"status": "complete", "filename": f"cosmiccrafter/{filename}"})
-    return web.json_response({"status": "ok"})
-
-@PromptServer.instance.routes.get("/cosmic_crafter_director_get_audio")
-async def cosmic_crafter_director_get_audio(request):
-    filename = request.query.get("filename")
-    if not filename:
-        return web.json_response({"error": "Missing filename"}, status=400)
-
-    upload_dir = folder_paths.get_input_directory()
-    file_path = os.path.join(upload_dir, filename)
-    if not os.path.exists(file_path):
-        return web.json_response({"error": "File not found"}, status=404)
-
-    _, ext = os.path.splitext(file_path)
-    is_audio = ext.lower() in [".wav", ".mp3", ".ogg", ".flac", ".m4a"]
-    
-    if is_audio:
-        peaks = None
-        try:
-            import torchaudio
-            import torch
-            import numpy as np
-            aud, sr = torchaudio.load(file_path)
-            # resample to low sample rate for peaks if possible
-            aud = aud.mean(dim=0) # mono
-            num_peaks = 200
-            step = max(1, len(aud) // num_peaks)
-            peaks = []
-            for i in range(0, len(aud), step):
-                chunk = aud[i:i+step]
-                peaks.append(float(chunk.abs().max().item()))
-        except Exception as e:
-            print(f"[CosmicCrafterDirector] Audio peak extraction error: {e}")
-            
-        return web.json_response({"peaks": peaks})
-
-    return web.json_response({"error": "Unsupported file format"}, status=400)
-
-@PromptServer.instance.routes.get("/cosmic_crafter_director_open_folder")
-async def cosmic_crafter_director_open_folder(request):
-    upload_dir = os.path.join(folder_paths.get_input_directory(), "cosmiccrafter")
-    os.makedirs(upload_dir, exist_ok=True)
-    try:
-        if hasattr(os, "startfile"):
-            os.startfile(upload_dir)
-        return web.json_response({"status": "ok"})
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
 

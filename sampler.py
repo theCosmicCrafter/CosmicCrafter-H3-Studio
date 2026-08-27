@@ -5538,6 +5538,10 @@ class H3LongVideos:
             },
             "optional": {
                 "custom_audio": ("AUDIO", {"tooltip": "Optional external audio input noodle (if piped from an external audio node). Overrides custom_audio_file."}),
+                "custom_audio_file": ("STRING", {"default": "none", "tooltip": "Audio file path or filename in ComfyUI input directory (.wav, .mp3, .flac, .ogg, .m4a)"}),
+                "custom_audio_mode": (["replace", "mix", "background_bed"], {"default": "replace", "tooltip": "replace: swap AI audio for custom; mix: overlay custom on AI audio; background_bed: auto-duck custom audio during dialogue"}),
+                "custom_audio_volume": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05, "tooltip": "Custom audio volume multiplier"}),
+                "custom_audio_offset": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 300.0, "step": 0.1, "tooltip": "Start offset in seconds for the custom audio track"}),
                 "first_frame_path": ("STRING", {"default": "", "multiline": False}),
                 "ref_paths": ("STRING", {"default": "", "multiline": False}),
                 "plan_only": ("BOOLEAN", {"default": False,
@@ -6047,6 +6051,8 @@ class H3LongVideos:
             first_frame_path="", ref_paths="", ref_images=None,
             ref_mode="where tagged", ref_image_size="match", ref_noise_aug=0.999,
             config_preset="Cinematic Master (25 Steps, 1.00MP Native)",
+            custom_audio=None, custom_audio_file="none", custom_audio_mode="replace",
+            custom_audio_volume=1.0, custom_audio_offset=0.0,
             graph=None, node_id=None, **kwargs):
 
         # FIRST: detect a checkpoint swap since the previous execution and hard-flush.
