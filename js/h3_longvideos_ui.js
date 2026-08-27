@@ -48,7 +48,7 @@ const WIDGET_CATEGORIES = {
     sampler_name: "core",
     scheduler: "core",
 
-    shot_seconds: "directing",
+    shot_seconds: "core",
     per_beat_length: "directing",
     beat_split: "directing",
     character_memory: "directing",
@@ -535,7 +535,7 @@ function applyTabFilter(node, activeTab) {
         if (activeTab === "all") {
             shouldShow = true;
         } else if (activeTab === "presets") {
-            shouldShow = ["steps", "megapixels", "resolution", "plan_only"].includes(w.name);
+            shouldShow = ["steps", "megapixels", "resolution", "shot_seconds", "plan_only"].includes(w.name);
         } else {
             shouldShow = (category === activeTab);
         }
@@ -923,13 +923,35 @@ app.registerExtension({
                 ctx.textAlign = "left";
                 ctx.textBaseline = "top";
                 const titleText = shots.length > 0
-                    ? `SHOT TIMELINE [ ${shots.length} Shots, ${totalSec.toFixed(1)}s / ${totalFrames}f ]`
-                    : "SHOT TIMELINE [ Type beats in prompt or click + ADD BEAT ]";
+                    ? `TIMELINE DURATION: ${totalSec.toFixed(1)}s (${shots.length} Shots, ${totalFrames}f @ 24fps)`
+                    : "TIMELINE DURATION [ Type beats in prompt or click + ADD BEAT ]";
                 ctx.fillText(titleText, margin + 8, m.ribbonY + 6);
+
+                // Global timeline duration step buttons
+                const btnGlobalY = m.ribbonY + 4;
+                const durMinusX = margin + fullW - 170;
+                const durPlusX = margin + fullW - 120;
+
+                node._globalDurBoxes = [
+                    { action: "minus", x: durMinusX, y: btnGlobalY, w: 42, h: 14 },
+                    { action: "plus", x: durPlusX, y: btnGlobalY, w: 42, h: 14 }
+                ];
+
+                ctx.fillStyle = "#1e293b";
+                ctx.beginPath(); ctx.roundRect(durMinusX, btnGlobalY, 42, 14, 2); ctx.fill();
+                ctx.strokeStyle = "#475569"; ctx.lineWidth = 0.8; ctx.stroke();
+                ctx.fillStyle = "#cbd5e1"; ctx.font = "bold 8px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText("- 1.0s", durMinusX + 21, btnGlobalY + 7);
+
+                ctx.fillStyle = "#1e293b";
+                ctx.beginPath(); ctx.roundRect(durPlusX, btnGlobalY, 42, 14, 2); ctx.fill();
+                ctx.strokeStyle = "#475569"; ctx.lineWidth = 0.8; ctx.stroke();
+                ctx.fillStyle = "#cbd5e1"; ctx.fillText("+ 1.0s", durPlusX + 21, btnGlobalY + 7);
 
                 ctx.fillStyle = "#22c55e";
                 ctx.font = "bold 9px sans-serif";
                 ctx.textAlign = "right";
+                ctx.textBaseline = "top";
                 ctx.fillText("[ + ADD BEAT ]", margin + fullW - 8, m.ribbonY + 6);
 
                 const trackY = m.ribbonY + 18;
@@ -1154,6 +1176,32 @@ app.registerExtension({
             // 5. Shot Sequence Timeline Interaction
             if (node._h3_show_timeline && clickY >= m.ribbonY && clickY <= (m.ribbonY + m.ribbonH) && clickX >= margin && clickX <= margin + fullW) {
                 const promptW = node.widgets?.find(w => w.name === "prompt");
+
+                // Check Global Duration Step Buttons [-1.0s] / [+1.0s]
+                for (let gbox of (node._globalDurBoxes || [])) {
+                    if (clickX >= gbox.x && clickX <= gbox.x + gbox.w && clickY >= gbox.y && clickY <= gbox.y + gbox.h) {
+                        const shotSecW = node.widgets?.find(w => w.name === "shot_seconds");
+                        const currentSec = shotSecW ? parseFloat(shotSecW.value || 5.0) : 5.0;
+                        const delta = (gbox.action === "plus") ? 1.0 : -1.0;
+                        const newSec = Math.max(1.0, Math.min(15.0, currentSec + delta));
+                        if (shotSecW) shotSecW.value = newSec;
+
+                        if (promptW && typeof promptW.value === "string") {
+                            const { anchor, shots } = parsePromptBeats(promptW.value, currentSec);
+                            if (shots.length > 0) {
+                                const newParas = [];
+                                if (anchor) newParas.push(anchor);
+                                for (let s of shots) {
+                                    const shotDur = Math.max(1.0, Math.min(15.0, s.seconds + delta));
+                                    newParas.push(`seconds: ${shotDur.toFixed(1)}\n${s.body}`);
+                                }
+                                promptW.value = newParas.join("\n\n");
+                            }
+                        }
+                        safeSetDirty(node);
+                        return true;
+                    }
+                }
 
                 if (clickY <= m.ribbonY + 16 && clickX >= margin + fullW - 70) {
                     addNewBeat(promptW);
