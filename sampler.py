@@ -6059,7 +6059,8 @@ class H3LongVideos:
         anchor_note = ""
         if (not anchor_override.strip()) and paras and \
                 (anchor_contributes_nothing(anchor, character_memory.strip())
-                 or anchor_is_action_beat(anchor, paras[1:])):
+                 or anchor_is_action_beat(anchor, paras[1:])
+                 or re.search(r"(?im)^\s*seconds\s*:\s*[\d\.]+", anchor)):
             preview = " ".join(anchor.split())[:60]
             anchor, beat_paras = "", paras
             anchor_note = (

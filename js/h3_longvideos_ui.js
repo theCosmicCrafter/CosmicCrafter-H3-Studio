@@ -48,7 +48,7 @@ const WIDGET_CATEGORIES = {
     sampler_name: "core",
     scheduler: "core",
 
-    shot_seconds: "core",
+    shot_seconds: "advanced",
     per_beat_length: "directing",
     beat_split: "directing",
     character_memory: "directing",
@@ -551,7 +551,7 @@ function applyTabFilter(node, activeTab) {
         if (activeTab === "all") {
             shouldShow = true;
         } else if (activeTab === "presets") {
-            shouldShow = ["steps", "megapixels", "resolution", "shot_seconds", "plan_only"].includes(w.name);
+            shouldShow = ["steps", "megapixels", "resolution", "plan_only"].includes(w.name);
         } else {
             shouldShow = (category === activeTab);
         }
