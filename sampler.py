@@ -5207,8 +5207,8 @@ class H3LongVideos:
     # output. Inserting mid-list would silently re-target them.
     # APPEND to these, never insert. A workflow stores an output link by SLOT INDEX,
     # so a new type in the middle silently re-points every link after it.
-    RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT", "LATENT", "STRING", "STRING")
-    RETURN_NAMES = ("images", "audio", "fps", "latent", "info", "script")
+    RETURN_TYPES = ("IMAGE", "AUDIO", "FLOAT")
+    RETURN_NAMES = ("images", "audio", "fps")
 
     @classmethod
     def IS_CHANGED(cls, plan_only=False, **kwargs):
@@ -5281,8 +5281,6 @@ class H3LongVideos:
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True}),
             },
             "optional": {
-                "first_frame": ("IMAGE", {"tooltip": "Optional initial frame for Image-to-Video (I2V)."}),
-                "ref_images": ("IMAGE", {"tooltip": "Optional character reference images for Ref2VA (accepts a single image or batch of up to 4 images)."}),
                 "first_frame_path": ("STRING", {"default": "", "multiline": False}),
                 "ref_paths": ("STRING", {"default": "", "multiline": False}),
                 "plan_only": ("BOOLEAN", {"default": False,
@@ -6227,8 +6225,7 @@ class H3LongVideos:
             # correctly-SHAPED empty one rather than None: a downstream LATENT input
             # would choke on None, and this keeps the preview wireable exactly like
             # a real run.
-            return (ph_img, ph_audio, float(fps),
-                    _empty_av_latent(w, h, 5, fps)[0], plan, "\n---\n".join(gens))
+            return (ph_img, ph_audio, float(fps))
 
         spk = speech_flags(beats)          # which shots have real (quoted) dialogue
         vram_trace = []                    # free VRAM after each shot
@@ -6649,7 +6646,7 @@ class H3LongVideos:
         # your own text when it did not. Emitting it means you can read what was
         # generated, and feed it straight back into the widget-input to pin it.
         return (all_frames, {"waveform": all_audio, "sample_rate": sr},
-                float(fps), latent_out, info, script)
+                float(fps))
 
 
 # REF2VA registers under its OWN key. The FL2VA pack one directory up keeps

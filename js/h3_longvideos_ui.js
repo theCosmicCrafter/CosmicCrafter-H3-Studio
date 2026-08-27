@@ -3,18 +3,19 @@ import { api } from "../../scripts/api.js";
 
 /**
  * MiniMax-H3 LongVideos Professional Video Editing Studio Interface
- * Inspired by Maestro & LTX Studio:
- * - Direct Drag-and-Drop Image Wells on Timeline & Reference Tray
- * - 1-Click File Browser Fallback on all Drop Zones
+ * - Exactly 4 Inputs: model, clip, vae, audio_vae (100% wire-clean exterior)
+ * - Exactly 3 Outputs: images, audio, fps (the complete video delivery tri-pack)
+ * - Automatic Workflow Sanitizer: Auto-prunes stale slots & repairs corrupted NaN values
+ * - Direct Drag-and-Drop Image Wells on Timeline & Reference Tray (<Picture 1>..<Picture 4>)
+ * - 1-Click File Browser Fallback on all Drop Wells
  * - Live Canvas Letterboxed Image Thumbnails with [X] Clear
- * - Embedded Style & Character Reference Asset Bay (<Picture 1>..<Picture 4>)
  * - Interactive Shot Sequence Track with Drag Reordering & Quick Duration (+/- 0.5s)
  * - 1-Click [+ ADD BEAT] and per-shot [X] Delete
  * - Bi-directional Real-Time Script Synchronization
  * - 100% Pure ASCII Typography (Zero Emojis)
  */
 
-const TARGET_NODES = new Set(["H3LongVideos", "H3_Promptor"]);
+const TARGET_NODES = new Set(["H3LongVideos", "H3_Promptor", "H3LongVideosFL2VA", "H3LongVideosV1", "H3LongVideosREF2VA"]);
 
 const TABS = [
     { id: "presets", label: "PRESETS" },
@@ -118,6 +119,70 @@ function safeSetDirty(node) {
     try { app?.canvas?.setDirty?.(true, true); } catch (_) {}
 }
 
+/**
+ * Prunes obsolete slots and repairs corrupted widget values loaded from old workflow files
+ */
+function sanitizeNodeSlots(node) {
+    if (!node) return;
+    const allowedInputs = new Set(["model", "clip", "vae", "audio_vae"]);
+    const expectedOutputs = ["images", "audio", "fps"];
+
+    // 1. Prune obsolete / converted input slots
+    if (Array.isArray(node.inputs)) {
+        for (let i = node.inputs.length - 1; i >= 0; i--) {
+            const inp = node.inputs[i];
+            if (!allowedInputs.has(inp.name)) {
+                node.removeInput(i);
+            }
+        }
+    }
+
+    // 2. Prune obsolete output slots to exactly 3
+    if (Array.isArray(node.outputs)) {
+        for (let i = node.outputs.length - 1; i >= 0; i--) {
+            const out = node.outputs[i];
+            if (!expectedOutputs.includes(out.name) || i >= 3) {
+                node.removeOutput(i);
+            }
+        }
+        if (node.outputs[0]) { node.outputs[0].name = "images"; node.outputs[0].type = "IMAGE"; }
+        if (node.outputs[1]) { node.outputs[1].name = "audio"; node.outputs[1].type = "AUDIO"; }
+        if (node.outputs[2]) { node.outputs[2].name = "fps"; node.outputs[2].type = "FLOAT"; }
+    }
+
+    // 3. Repair corrupted widget values caused by old workflow positional mismatches
+    const cfgW = node.widgets?.find(w => w.name === "cfg");
+    if (cfgW && (isNaN(cfgW.value) || typeof cfgW.value !== "number")) cfgW.value = 1.0;
+
+    const seedW = node.widgets?.find(w => w.name === "seed");
+    if (seedW && (isNaN(seedW.value) || typeof seedW.value !== "number")) seedW.value = 0;
+
+    const resW = node.widgets?.find(w => w.name === "resolution");
+    if (resW && (typeof resW.value === "number" || !isNaN(parseFloat(resW.value)))) {
+        resW.value = "16:9 (Cinematic Widescreen 1344x768)";
+    }
+
+    const mpW = node.widgets?.find(w => w.name === "megapixels");
+    if (mpW && (typeof mpW.value !== "number" || mpW.value > 4.0 || mpW.value < 0.1)) {
+        mpW.value = 1.0;
+    }
+
+    const stepsW = node.widgets?.find(w => w.name === "steps");
+    if (stepsW && (typeof stepsW.value !== "number" || stepsW.value < 6 || stepsW.value > 100)) {
+        stepsW.value = 25;
+    }
+
+    const schedW = node.widgets?.find(w => w.name === "scheduler");
+    if (schedW && (typeof schedW.value === "number" || !isNaN(parseFloat(schedW.value)))) {
+        schedW.value = "simple";
+    }
+
+    const samplerW = node.widgets?.find(w => w.name === "sampler_name");
+    if (samplerW && samplerW.value === "simple") {
+        samplerW.value = "res_multistep";
+    }
+}
+
 const _IMAGE_CACHE = new Map();
 function getCachedImage(filename) {
     if (!filename) return null;
@@ -175,9 +240,10 @@ function drawLetterboxedThumbnail(ctx, img, x, y, w, h) {
 }
 
 function getHeaderMetrics(node) {
-    // 6 inputs, 6 outputs connection bay
-    const slotAreaBottom = 152;
-    const headerStartY = 158;
+    // 4 inputs on left (y: 30, 50, 70, 90), 3 outputs on right (y: 30, 50, 70)
+    // Connection bay completes cleanly at y = 104
+    const slotAreaBottom = 104;
+    const headerStartY = 112;
 
     const tabY = headerStartY;
     const tabH = 26;
@@ -267,7 +333,7 @@ function updatePromptShotDuration(promptWidget, shotIndex, delta) {
 function reorderPromptBeats(promptWidget, fromIndex, toIndex) {
     if (!promptWidget || !promptWidget.value) return;
     const { paragraphs } = parsePromptBeats(promptWidget.value);
-    if (fromIndex === 0 || toIndex === 0) return; // Keep Anchor at Paragraph 0
+    if (fromIndex === 0 || toIndex === 0) return;
     if (fromIndex < 0 || fromIndex >= paragraphs.length || toIndex < 0 || toIndex >= paragraphs.length) return;
 
     const item = paragraphs.splice(fromIndex, 1)[0];
@@ -290,7 +356,7 @@ function addNewBeat(promptWidget) {
 function deleteBeat(promptWidget, shotIndex) {
     if (!promptWidget || !promptWidget.value) return;
     const { paragraphs } = parsePromptBeats(promptWidget.value);
-    if (shotIndex === 0) return; // Cannot delete Anchor
+    if (shotIndex === 0) return;
     if (shotIndex < 0 || shotIndex >= paragraphs.length) return;
     paragraphs.splice(shotIndex, 1);
     promptWidget.value = paragraphs.join("\n\n");
@@ -299,25 +365,25 @@ function deleteBeat(promptWidget, shotIndex) {
 }
 
 function applyPreset(node, presetName) {
-    const cpW = node.widgets.find(w => w.name === "config_preset");
+    const cpW = node.widgets?.find(w => w.name === "config_preset");
     if (cpW) cpW.value = presetName;
 
-    const stepsW = node.widgets.find(w => w.name === "steps");
-    const mpW = node.widgets.find(w => w.name === "megapixels");
-    const cfgW = node.widgets.find(w => w.name === "cfg");
-    const samplerW = node.widgets.find(w => w.name === "sampler_name");
-    const schedW = node.widgets.find(w => w.name === "scheduler");
-    const shiftVW = node.widgets.find(w => w.name === "shift_video");
-    const shiftAW = node.widgets.find(w => w.name === "shift_audio");
-    const motionW = node.widgets.find(w => w.name === "motion_guard");
-    const contactW = node.widgets.find(w => w.name === "contact_guard");
-    const solidW = node.widgets.find(w => w.name === "solidity_guard");
-    const anatW = node.widgets.find(w => w.name === "anatomy_guard");
-    const subCountW = node.widgets.find(w => w.name === "subject_count_guard");
-    const tileF = node.widgets.find(w => w.name === "decode_tile_frames");
-    const tileS = node.widgets.find(w => w.name === "decode_tile_size");
-    const upscaleW = node.widgets.find(w => w.name === "upscale");
-    const upShortW = node.widgets.find(w => w.name === "upscale_target_short_edge");
+    const stepsW = node.widgets?.find(w => w.name === "steps");
+    const mpW = node.widgets?.find(w => w.name === "megapixels");
+    const cfgW = node.widgets?.find(w => w.name === "cfg");
+    const samplerW = node.widgets?.find(w => w.name === "sampler_name");
+    const schedW = node.widgets?.find(w => w.name === "scheduler");
+    const shiftVW = node.widgets?.find(w => w.name === "shift_video");
+    const shiftAW = node.widgets?.find(w => w.name === "shift_audio");
+    const motionW = node.widgets?.find(w => w.name === "motion_guard");
+    const contactW = node.widgets?.find(w => w.name === "contact_guard");
+    const solidW = node.widgets?.find(w => w.name === "solidity_guard");
+    const anatW = node.widgets?.find(w => w.name === "anatomy_guard");
+    const subCountW = node.widgets?.find(w => w.name === "subject_count_guard");
+    const tileF = node.widgets?.find(w => w.name === "decode_tile_frames");
+    const tileS = node.widgets?.find(w => w.name === "decode_tile_size");
+    const upscaleW = node.widgets?.find(w => w.name === "upscale");
+    const upShortW = node.widgets?.find(w => w.name === "upscale_target_short_edge");
 
     if (presetName.includes("Cinematic Master")) {
         if (stepsW) stepsW.value = 25;
@@ -377,6 +443,8 @@ function applyPreset(node, presetName) {
 
 function applyTabFilter(node, activeTab) {
     if (!node || !node.widgets) return;
+
+    sanitizeNodeSlots(node);
 
     const showTimeline = (activeTab === "core" || activeTab === "directing" || activeTab === "all");
     node._h3_show_timeline = showTimeline;
@@ -490,7 +558,13 @@ app.registerExtension({
             node._draggingIndex = null;
             node._dragStartX = 0;
 
-            // HTML5 Drag and Drop Listener on window for file drops
+            // Sanitize slots immediately
+            setTimeout(() => {
+                sanitizeNodeSlots(node);
+                applyTabFilter(node, node._h3_active_tab || "core");
+            }, 10);
+
+            // Drag and drop listener
             if (!window._h3_drop_bound) {
                 window._h3_drop_bound = true;
                 window.addEventListener("dragover", (e) => {
@@ -505,7 +579,6 @@ app.registerExtension({
                     if (!canvas) return;
                     const pos = canvas.convertEventToCanvasOffset(e);
 
-                    // Find if dropped inside this node
                     const nodes = canvas.graph?._nodes || [];
                     for (let n of nodes) {
                         if (!TARGET_NODES.has(n.type)) continue;
@@ -517,9 +590,7 @@ app.registerExtension({
                         if (pos[0] >= nx && pos[0] <= nx + nw && pos[1] >= ny && pos[1] <= ny + nh) {
                             const relX = pos[0] - nx;
                             const relY = pos[1] - ny;
-                            const m = getHeaderMetrics(n);
 
-                            // 1. Check if dropped on S1 (Anchor)
                             const s1Box = (n._shotBoxes || [])[0];
                             if (s1Box && relX >= s1Box.x && relX <= s1Box.x + s1Box.w && relY >= s1Box.y && relY <= s1Box.y + s1Box.h) {
                                 e.preventDefault();
@@ -532,7 +603,6 @@ app.registerExtension({
                                 return;
                             }
 
-                            // 2. Check if dropped on Reference Tray
                             for (let rb of (n._refBoxes || [])) {
                                 if (relX >= rb.x && relX <= rb.x + rb.w && relY >= rb.y && relY <= rb.y + rb.h) {
                                     e.preventDefault();
@@ -555,10 +625,10 @@ app.registerExtension({
                 });
             }
 
-            // Dynamic audio shift coupling: maintain 4:1 video:audio shift scale
+            // Audio shift coupling: 4:1 scale
             setTimeout(() => {
-                const shiftVW = node.widgets ? node.widgets.find(w => w.name === "shift_video") : null;
-                const shiftAW = node.widgets ? node.widgets.find(w => w.name === "shift_audio") : null;
+                const shiftVW = node.widgets?.find(w => w.name === "shift_video");
+                const shiftAW = node.widgets?.find(w => w.name === "shift_audio");
                 if (shiftVW) {
                     const origShiftVCb = shiftVW.callback;
                     shiftVW.callback = function(val) {
@@ -571,24 +641,18 @@ app.registerExtension({
                     };
                 }
 
-                // Clean orphaned exposed_terms textareas from DOM
-                document.querySelectorAll("textarea").forEach(el => {
-                    if (el.className && el.className.includes("exposed_terms")) {
-                        el.remove();
-                    }
-                });
-
+                sanitizeNodeSlots(node);
                 applyTabFilter(node, node._h3_active_tab || "core");
-            }, 20);
+            }, 30);
 
-            // Inline Plan Execution Hook
+            // Inline plan preview hook
             const origOnExecuted = node.onExecuted;
             node.onExecuted = function(message) {
                 if (origOnExecuted) origOnExecuted.apply(this, arguments);
                 const infoText = (message && message.text && message.text[0]) ? message.text[0] : null;
                 if (!infoText) return;
 
-                let previewWidget = node.widgets.find(w => w.name === "h3_plan_preview");
+                let previewWidget = node.widgets?.find(w => w.name === "h3_plan_preview");
                 if (!previewWidget) {
                     previewWidget = node.addWidget("text", "h3_plan_preview", "", () => {}, {
                         multiline: true,
@@ -628,7 +692,7 @@ app.registerExtension({
             ctx.lineTo(margin + fullW, m.slotAreaBottom - 2);
             ctx.stroke();
 
-            // 1. Tab Navigation Bar (Placed cleanly below connection bay)
+            // 1. Tab Navigation Bar
             const tabW = fullW / TABS.length;
 
             for (let i = 0; i < TABS.length; i++) {
@@ -653,7 +717,7 @@ app.registerExtension({
             }
 
             // 2. Mode Action Button
-            const planW = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
+            const planW = node.widgets?.find(w => w.name === "plan_only");
             const isPlanOnly = planW ? Boolean(planW.value) : false;
 
             ctx.fillStyle = isPlanOnly ? "#143020" : "#20202e";
@@ -675,7 +739,7 @@ app.registerExtension({
             ctx.fillText(modeText, margin + fullW / 2, m.modeY + m.modeH / 2);
 
             // 3. Workflow Preset Selector
-            const cpW = node.widgets ? node.widgets.find(w => w.name === "config_preset") : null;
+            const cpW = node.widgets?.find(w => w.name === "config_preset");
             const currentPreset = cpW ? (cpW.value || PRESETS[0]) : PRESETS[0];
 
             ctx.fillStyle = "#181822";
@@ -696,13 +760,12 @@ app.registerExtension({
             ctx.fillStyle = "#f1f5f9";
             ctx.fillText(currentPreset, margin + 65, m.presetY + m.presetH / 2);
 
-            // Cycle button indicators on right
             ctx.textAlign = "right";
             ctx.font = "bold 9px sans-serif";
             ctx.fillStyle = "#94a3b8";
             ctx.fillText("[ PREV | NEXT ]", margin + fullW - 8, m.presetY + m.presetH / 2);
 
-            // 4. Style & Character Reference Tray (shown on core/directing/all)
+            // 4. Style & Character Reference Tray
             if (node._h3_show_timeline) {
                 node._refBoxes = [];
                 const trayY = m.refTrayY;
@@ -767,7 +830,7 @@ app.registerExtension({
                         const shortName = fn.length > 10 ? fn.substring(0, 8) + ".." : fn;
                         ctx.fillText(shortName, sx + 34, slotY + 16);
 
-                        // Clear [x] button
+                        // Clear [x]
                         ctx.fillStyle = "#ef4444";
                         ctx.font = "bold 9px sans-serif";
                         ctx.textAlign = "right";
@@ -782,11 +845,11 @@ app.registerExtension({
                 }
 
                 // 5. Shot Sequence Timeline Ribbon
-                const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
+                const promptW = node.widgets?.find(w => w.name === "prompt");
                 const promptText = promptW ? promptW.value : "";
-                const shotSecW = node.widgets ? node.widgets.find(w => w.name === "shot_seconds") : null;
+                const shotSecW = node.widgets?.find(w => w.name === "shot_seconds");
                 const defaultSec = shotSecW ? parseFloat(shotSecW.value || 5.0) : 5.0;
-                const shiftVW = node.widgets ? node.widgets.find(w => w.name === "shift_video") : null;
+                const shiftVW = node.widgets?.find(w => w.name === "shift_video");
                 const shiftV = shiftVW ? parseFloat(shiftVW.value || 12.0) : 12.0;
 
                 const { shots } = parsePromptBeats(promptText, defaultSec);
@@ -796,7 +859,6 @@ app.registerExtension({
                 const totalFrames = Math.round(totalSec * 24);
                 const totalAudioLatents = Math.round(totalSec * 40);
 
-                // Container
                 ctx.fillStyle = "#121218";
                 ctx.beginPath();
                 ctx.roundRect(margin, m.ribbonY, fullW, m.ribbonH, 4);
@@ -805,7 +867,6 @@ app.registerExtension({
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Ribbon Header
                 ctx.fillStyle = "#94a3b8";
                 ctx.font = "bold 9px sans-serif";
                 ctx.textAlign = "left";
@@ -815,13 +876,11 @@ app.registerExtension({
                     : "SHOT TIMELINE [ Type beats in prompt or click + ADD BEAT ]";
                 ctx.fillText(titleText, margin + 8, m.ribbonY + 6);
 
-                // [+ ADD BEAT] Button on right
                 ctx.fillStyle = "#22c55e";
                 ctx.font = "bold 9px sans-serif";
                 ctx.textAlign = "right";
                 ctx.fillText("[ + ADD BEAT ]", margin + fullW - 8, m.ribbonY + 6);
 
-                // Track area
                 const trackY = m.ribbonY + 18;
                 const trackH = 52;
                 const trackW = fullW - 12;
@@ -876,12 +935,10 @@ app.registerExtension({
                         ctx.lineWidth = isBeingDragged ? 1.8 : 0.9;
                         ctx.stroke();
 
-                        // S1 Anchor First Frame Thumbnail
                         if (isAnchor && firstFrameFile) {
                             const ffImg = getCachedImage(firstFrameFile);
                             drawLetterboxedThumbnail(ctx, ffImg, sx + 2, trackY + 2, 28, trackH - 4);
 
-                            // Delete starting frame [x] button
                             ctx.fillStyle = "#ef4444";
                             ctx.font = "bold 9px sans-serif";
                             ctx.textAlign = "right";
@@ -891,7 +948,6 @@ app.registerExtension({
 
                         const textOffset = (isAnchor && firstFrameFile) ? 32 : 4;
 
-                        // Label
                         ctx.textAlign = "left";
                         ctx.textBaseline = "top";
                         ctx.font = "bold 9px sans-serif";
@@ -899,7 +955,6 @@ app.registerExtension({
                         const tag = isAnchor ? (firstFrameFile ? "S1: I2V" : "S1: ANCHOR") : (shot.hasDialogue ? `S${i + 1}: DIA` : (shot.hasMotion ? `S${i + 1}: ACT` : `S${i + 1}: BEAT`));
                         ctx.fillText(tag, sx + textOffset, trackY + 3);
 
-                        // Drag Grip Icon & Delete Shot [x]
                         if (!isAnchor) {
                             ctx.fillStyle = "#64748b";
                             ctx.font = "8px sans-serif";
@@ -911,7 +966,6 @@ app.registerExtension({
                             ctx.fillText("x", sx + sw - 4, trackY + 3);
                         }
 
-                        // Duration Text & +/- Buttons
                         ctx.textAlign = "left";
                         ctx.font = "9px sans-serif";
                         ctx.fillStyle = "#e2e8f0";
@@ -921,7 +975,7 @@ app.registerExtension({
                         const btnH = 14;
                         const btnW = 14;
 
-                        // Minus Button [-]
+                        // [-]
                         ctx.fillStyle = "#1e293b";
                         ctx.beginPath();
                         ctx.roundRect(sx + textOffset, btnY, btnW, btnH, 2);
@@ -936,7 +990,7 @@ app.registerExtension({
                         ctx.textBaseline = "middle";
                         ctx.fillText("-", sx + textOffset + btnW / 2, btnY + btnH / 2);
 
-                        // Plus Button [+]
+                        // [+]
                         ctx.fillStyle = "#1e293b";
                         ctx.beginPath();
                         ctx.roundRect(sx + textOffset + 16, btnY, btnW, btnH, 2);
@@ -946,7 +1000,6 @@ app.registerExtension({
                         ctx.fillStyle = "#94a3b8";
                         ctx.fillText("+", sx + textOffset + 16 + btnW / 2, btnY + btnH / 2);
 
-                        // Snippet text
                         ctx.textAlign = "left";
                         ctx.font = "8px sans-serif";
                         ctx.fillStyle = "#64748b";
@@ -955,7 +1008,6 @@ app.registerExtension({
                     }
                 }
 
-                // Status Footer
                 const footY = m.ribbonY + 72;
                 ctx.fillStyle = "#64748b";
                 ctx.font = "9px sans-serif";
@@ -995,7 +1047,7 @@ app.registerExtension({
 
             // 2. Mode Button Click
             if (clickY >= m.modeY && clickY <= (m.modeY + m.modeH) && clickX >= margin && clickX <= margin + fullW) {
-                const planW = node.widgets ? node.widgets.find(w => w.name === "plan_only") : null;
+                const planW = node.widgets?.find(w => w.name === "plan_only");
                 if (planW) {
                     planW.value = !planW.value;
                     if (planW.callback) planW.callback(planW.value);
@@ -1006,7 +1058,7 @@ app.registerExtension({
 
             // 3. Preset Selector Click
             if (clickY >= m.presetY && clickY <= (m.presetY + m.presetH) && clickX >= margin && clickX <= margin + fullW) {
-                const cpW = node.widgets ? node.widgets.find(w => w.name === "config_preset") : null;
+                const cpW = node.widgets?.find(w => w.name === "config_preset");
                 const current = cpW ? (cpW.value || PRESETS[0]) : PRESETS[0];
                 let idx = PRESETS.indexOf(current);
                 if (idx === -1) idx = 0;
@@ -1023,7 +1075,7 @@ app.registerExtension({
                 return true;
             }
 
-            // 4. Reference Tray Clicks (Drop, Browse, or Clear)
+            // 4. Reference Tray Clicks
             if (node._h3_show_timeline && clickY >= m.refTrayY && clickY <= (m.refTrayY + m.refTrayH)) {
                 for (let rb of (node._refBoxes || [])) {
                     if (clickX >= rb.x && clickX <= rb.x + rb.w && clickY >= rb.y && clickY <= rb.y + rb.h) {
@@ -1031,7 +1083,6 @@ app.registerExtension({
                         let current = {};
                         try { current = JSON.parse(refW?.value || "{}"); } catch(_) {}
 
-                        // Check if click on [x] to clear
                         if (rb.filename && clickX >= rb.x + rb.w - 14 && clickY <= rb.y + 14) {
                             delete current[rb.slot];
                             if (refW) refW.value = JSON.stringify(current);
@@ -1039,7 +1090,6 @@ app.registerExtension({
                             return true;
                         }
 
-                        // Otherwise browse for file
                         promptForLocalImage((filename) => {
                             current[rb.slot] = filename;
                             if (refW) refW.value = JSON.stringify(current);
@@ -1052,16 +1102,14 @@ app.registerExtension({
 
             // 5. Shot Sequence Timeline Interaction
             if (node._h3_show_timeline && clickY >= m.ribbonY && clickY <= (m.ribbonY + m.ribbonH) && clickX >= margin && clickX <= margin + fullW) {
-                const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
+                const promptW = node.widgets?.find(w => w.name === "prompt");
 
-                // Check if [+ ADD BEAT] clicked
                 if (clickY <= m.ribbonY + 16 && clickX >= margin + fullW - 70) {
                     addNewBeat(promptW);
                     safeSetDirty(node);
                     return true;
                 }
 
-                // Check shot hit
                 const hitBox = (node._shotBoxes || []).find(b =>
                     clickX >= b.x && clickX <= (b.x + b.w) && clickY >= b.y && clickY <= (b.y + b.h)
                 );
@@ -1070,14 +1118,12 @@ app.registerExtension({
                     const i = hitBox.index;
                     const ffW = node.widgets?.find(w => w.name === "first_frame_path");
 
-                    // S1 clear starting frame [x]
                     if (hitBox.isAnchor && ffW?.value && clickX >= hitBox.x + hitBox.w - 14 && clickY <= hitBox.y + 14) {
                         ffW.value = "";
                         safeSetDirty(node);
                         return true;
                     }
 
-                    // S1 browse for starting frame if clicked on thumbnail area
                     if (hitBox.isAnchor && clickX <= hitBox.x + 30) {
                         promptForLocalImage((filename) => {
                             if (ffW) ffW.value = filename;
@@ -1086,7 +1132,6 @@ app.registerExtension({
                         return true;
                     }
 
-                    // Delete scene beat [x]
                     if (!hitBox.isAnchor && clickX >= hitBox.x + hitBox.w - 12 && clickY <= hitBox.y + 14) {
                         deleteBeat(promptW, i);
                         safeSetDirty(node);
@@ -1098,21 +1143,20 @@ app.registerExtension({
                     const btnH = 14;
                     const btnW = 14;
 
-                    // Minus Button [-]
+                    // [-]
                     if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + offset && clickX <= hitBox.x + offset + btnW) {
                         updatePromptShotDuration(promptW, i, -0.5);
                         safeSetDirty(node);
                         return true;
                     }
 
-                    // Plus Button [+]
+                    // [+]
                     if (clickY >= btnY && clickY <= btnY + btnH && clickX >= hitBox.x + offset + 16 && clickX <= hitBox.x + offset + 16 + btnW) {
                         updatePromptShotDuration(promptW, i, +0.5);
                         safeSetDirty(node);
                         return true;
                     }
 
-                    // Drag to Reorder
                     if (!hitBox.isAnchor) {
                         node._draggingIndex = i;
                         node._dragStartX = clickX;
@@ -1127,7 +1171,6 @@ app.registerExtension({
             }
         };
 
-        // Drag Release Hook
         const origNodeMouseUp = nodeType.prototype.onMouseUp;
         nodeType.prototype.onMouseUp = function(event, pos, canvas) {
             const node = this;
@@ -1135,7 +1178,7 @@ app.registerExtension({
                 const fromIdx = node._draggingIndex;
                 node._draggingIndex = null;
                 const clickX = pos[0];
-                const promptW = node.widgets ? node.widgets.find(w => w.name === "prompt") : null;
+                const promptW = node.widgets?.find(w => w.name === "prompt");
 
                 const targetBox = (node._shotBoxes || []).find(b =>
                     clickX >= b.x && clickX <= (b.x + b.w) && !b.isAnchor
@@ -1153,12 +1196,13 @@ app.registerExtension({
             }
         };
 
-        // Configuration / Load Workflow Hook
+        // Configuration / Load Workflow Hook: Force slot & value sanitization
         const origOnConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function () {
             const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
             const n = this;
             setTimeout(() => {
+                sanitizeNodeSlots(n);
                 applyTabFilter(n, n._h3_active_tab || "core");
             }, 30);
             return r;
