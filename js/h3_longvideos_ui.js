@@ -301,30 +301,71 @@ app.registerExtension({
 
                         const stepsW = node.widgets.find(w => w.name === "steps");
                         const mpW = node.widgets.find(w => w.name === "megapixels");
+                        const cfgW = node.widgets.find(w => w.name === "cfg");
+                        const samplerW = node.widgets.find(w => w.name === "sampler_name");
+                        const schedW = node.widgets.find(w => w.name === "scheduler");
                         const shiftVW = node.widgets.find(w => w.name === "shift_video");
                         const shiftAW = node.widgets.find(w => w.name === "shift_audio");
                         const motionW = node.widgets.find(w => w.name === "motion_guard");
                         const contactW = node.widgets.find(w => w.name === "contact_guard");
+                        const solidW = node.widgets.find(w => w.name === "solidity_guard");
+                        const anatW = node.widgets.find(w => w.name === "anatomy_guard");
+                        const subCountW = node.widgets.find(w => w.name === "subject_count_guard");
+                        const tileF = node.widgets.find(w => w.name === "decode_tile_frames");
+                        const tileS = node.widgets.find(w => w.name === "decode_tile_size");
+                        const upscaleW = node.widgets.find(w => w.name === "upscale");
+                        const upShortW = node.widgets.find(w => w.name === "upscale_target_short_edge");
 
-                        if (val === "Quality Base H3 (20 Steps)") {
-                            if (stepsW) stepsW.value = 20;
+                        if (val && val.includes("Cinematic Master")) {
+                            if (stepsW) stepsW.value = 25;
                             if (mpW) mpW.value = 1.0;
+                            if (cfgW) cfgW.value = 1.0;
+                            if (samplerW) samplerW.value = "res_multistep";
+                            if (schedW) schedW.value = "simple";
                             if (shiftVW) shiftVW.value = 12.0;
                             if (shiftAW) shiftAW.value = 3.0;
-                        } else if (val === "Turbo LoRA (6-8 Steps)") {
+                            if (motionW) motionW.value = "auto";
+                            if (contactW) contactW.value = "auto";
+                            if (solidW) solidW.value = "auto";
+                            if (anatW) anatW.value = "auto";
+                            if (subCountW) subCountW.value = "auto";
+                            if (tileF) tileF.value = 0;
+                            if (tileS) tileS.value = 0;
+                            if (upscaleW) upscaleW.value = "off";
+                        } else if (val && val.includes("Quality Base H3")) {
+                            if (stepsW) stepsW.value = 20;
+                            if (mpW) mpW.value = 1.0;
+                            if (cfgW) cfgW.value = 1.0;
+                            if (samplerW) samplerW.value = "res_multistep";
+                            if (schedW) schedW.value = "simple";
+                            if (shiftVW) shiftVW.value = 12.0;
+                            if (shiftAW) shiftAW.value = 3.0;
+                        } else if (val && val.includes("Ultra-Detailed 4K Master")) {
+                            if (stepsW) stepsW.value = 25;
+                            if (mpW) mpW.value = 1.0;
+                            if (cfgW) cfgW.value = 1.0;
+                            if (samplerW) samplerW.value = "res_multistep";
+                            if (schedW) schedW.value = "simple";
+                            if (shiftVW) shiftVW.value = 12.0;
+                            if (shiftAW) shiftAW.value = 3.0;
+                            if (upscaleW) upscaleW.value = "model";
+                            if (upShortW) upShortW.value = 1440;
+                        } else if (val && val.includes("Action & Kinetic Dynamics")) {
+                            if (stepsW) stepsW.value = 25;
+                            if (mpW) mpW.value = 1.0;
+                            if (motionW) motionW.value = "on";
+                            if (contactW) contactW.value = "on";
+                            if (solidW) solidW.value = "on";
+                        } else if (val && val.includes("Turbo LoRA")) {
                             if (stepsW) stepsW.value = 8;
                             if (mpW) mpW.value = 0.83;
                             if (shiftVW) shiftVW.value = 8.0;
                             if (shiftAW) shiftAW.value = 2.0;
-                        } else if (val === "Low VRAM Fast Draft") {
+                        } else if (val && val.includes("Low VRAM")) {
+                            if (stepsW) stepsW.value = 15;
                             if (mpW) mpW.value = 0.65;
-                            const tileF = node.widgets.find(w => w.name === "decode_tile_frames");
-                            const tileS = node.widgets.find(w => w.name === "decode_tile_size");
                             if (tileF) tileF.value = 8;
                             if (tileS) tileS.value = 256;
-                        } else if (val === "Action / High Motion") {
-                            if (motionW) motionW.value = "on";
-                            if (contactW) contactW.value = "on";
                         }
                         node.setDirtyCanvas(true, true);
                     };
