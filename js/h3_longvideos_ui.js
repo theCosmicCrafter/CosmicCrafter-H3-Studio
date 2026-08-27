@@ -668,48 +668,6 @@ function applyTabFilter(node, activeTab) {
 }
 
 
-        const origNodeMouseMove = nodeType.prototype.onMouseMove;
-        nodeType.prototype.onMouseMove = function(event, pos, canvas) {
-            const node = this;
-            if (node._isDraggingTimeline) {
-                const delta = pos[1] - node._dragStartY;
-                const newH = Math.max(65, Math.min(450, Math.round(node._dragStartH + delta)));
-                node.properties = node.properties || {};
-                node.properties._timelineHeight = newH;
-                const m = getHeaderMetrics(node);
-                if (node.size[1] < m.totalHeaderBottom + 60) {
-                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
-                }
-                safeSetDirty(node);
-                return true;
-            }
-            if (node._isDraggingRefTray) {
-                const delta = pos[1] - node._dragStartY;
-                const newH = Math.max(45, Math.min(300, Math.round(node._dragStartH + delta)));
-                node.properties = node.properties || {};
-                node.properties._refTrayHeight = newH;
-                const m = getHeaderMetrics(node);
-                if (node.size[1] < m.totalHeaderBottom + 60) {
-                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
-                }
-                safeSetDirty(node);
-                return true;
-            }
-            if (origNodeMouseMove) return origNodeMouseMove.apply(this, arguments);
-        };
-
-        const origNodeMouseUp = nodeType.prototype.onMouseUp;
-        nodeType.prototype.onMouseUp = function(event, pos, canvas) {
-            const node = this;
-            if (node._isDraggingTimeline || node._isDraggingRefTray) {
-                node._isDraggingTimeline = false;
-                node._isDraggingRefTray = false;
-                safeSetDirty(node);
-                return true;
-            }
-            if (origNodeMouseUp) return origNodeMouseUp.apply(this, arguments);
-        };
-
 app.registerExtension({
     name: "MiniMaxH3.LongVideosUI",
 
@@ -1534,9 +1492,46 @@ const origNodeMouseDown = nodeType.prototype.onMouseDown;
             }
         };
 
+                const origNodeMouseMove = nodeType.prototype.onMouseMove;
+        nodeType.prototype.onMouseMove = function(event, pos, canvas) {
+            const node = this;
+            if (node._isDraggingTimeline) {
+                const delta = pos[1] - node._dragStartY;
+                const newH = Math.max(65, Math.min(450, Math.round(node._dragStartH + delta)));
+                node.properties = node.properties || {};
+                node.properties._timelineHeight = newH;
+                const m = getHeaderMetrics(node);
+                if (node.size[1] < m.totalHeaderBottom + 60) {
+                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
+                }
+                safeSetDirty(node);
+                return true;
+            }
+            if (node._isDraggingRefTray) {
+                const delta = pos[1] - node._dragStartY;
+                const newH = Math.max(45, Math.min(300, Math.round(node._dragStartH + delta)));
+                node.properties = node.properties || {};
+                node.properties._refTrayHeight = newH;
+                const m = getHeaderMetrics(node);
+                if (node.size[1] < m.totalHeaderBottom + 60) {
+                    node.setSize([node.size[0], m.totalHeaderBottom + 60]);
+                }
+                safeSetDirty(node);
+                return true;
+            }
+            if (origNodeMouseMove) return origNodeMouseMove.apply(this, arguments);
+        };
+
         const origNodeMouseUp = nodeType.prototype.onMouseUp;
         nodeType.prototype.onMouseUp = function(event, pos, canvas) {
             const node = this;
+            if (node._isDraggingTimeline || node._isDraggingRefTray) {
+                node._isDraggingTimeline = false;
+                node._isDraggingRefTray = false;
+                safeSetDirty(node);
+                return true;
+            }
+
             if (node._draggingIndex !== null) {
                 const fromIdx = node._draggingIndex;
                 node._draggingIndex = null;
