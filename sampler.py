@@ -5422,10 +5422,10 @@ def apply_custom_audio(generated_audio, sr, total_frames, fps,
     vol = float(custom_audio_volume)
 
     if custom_audio_mode == "replace":
-        final_audio = torch.clamp(c_wav * vol, -1.0, 1.0)
+        final_audio = c_wav * vol
         note = f"custom audio replaced AI audio (vol {vol:g})"
     elif custom_audio_mode == "mix":
-        final_audio = torch.clamp(generated_audio + (c_wav * vol), -1.0, 1.0)
+        final_audio = generated_audio + (c_wav * vol)
         note = f"custom audio mixed with AI audio (vol {vol:g})"
     elif custom_audio_mode == "background_bed":
         bed = c_wav * vol
@@ -5436,11 +5436,16 @@ def apply_custom_audio(generated_audio, sr, total_frames, fps,
                 en = min(target_samples, (idx + 1) * shot_samples)
                 if is_spk:
                     bed[:, st:en] *= 0.20
-        final_audio = torch.clamp(generated_audio + bed, -1.0, 1.0)
+        final_audio = generated_audio + bed
         note = f"custom audio layered as background bed with auto-ducking (vol {vol:g})"
     else:
         final_audio = generated_audio
         note = ""
+
+    # Soft headroom normalization (RyanOnTheInside / Cosmic audio pattern: prevents harsh digital clipping)
+    max_amp = torch.max(torch.abs(final_audio))
+    if max_amp > 1.0:
+        final_audio = final_audio / max_amp
 
     return final_audio, note
 
