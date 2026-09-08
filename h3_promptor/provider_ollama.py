@@ -43,6 +43,12 @@ class OllamaProvider(BaseLLMProvider):
             "messages": messages,
             "stream": False,
             "keep_alive": 0,  # CRITICAL: Release VRAM & RAM back to GPU immediately upon completion
+            # Reasoning models (qwen3, qwq, deepseek-r1) spend num_predict inside a
+            # separate "thinking" field and can hit the token cap before emitting a
+            # single character of "content" -- the caller then gets an empty string and
+            # no error. We want the answer, not the deliberation, so switch thinking
+            # off. Ollama ignores this key on models that do not support it.
+            "think": False,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
@@ -58,7 +64,26 @@ class OllamaProvider(BaseLLMProvider):
             )
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                content = data.get("message", {}).get("content", "")
+                msg = data.get("message", {}) or {}
+                content = msg.get("content", "") or ""
+                if not content.strip():
+                    # An empty answer is a FAILURE, not a success -- returning it with
+                    # error=None sent a blank prompt downstream with nothing to say why.
+                    # The two causes are worth telling apart in the message.
+                    thinking = (msg.get("thinking") or msg.get("reasoning") or "").strip()
+                    if thinking and data.get("done_reason") == "length":
+                        return LLMResponse(
+                            content="", model=self.model,
+                            error=(f"{active_model} spent all {max_tokens} tokens reasoning and "
+                                   f"never wrote an answer. Raise max_tokens, or pick a model "
+                                   f"that is not a reasoning model."))
+                    if data.get("done_reason") == "length":
+                        return LLMResponse(
+                            content="", model=self.model,
+                            error=f"{active_model} hit the {max_tokens}-token cap before answering.")
+                    return LLMResponse(
+                        content="", model=self.model,
+                        error=f"{active_model} returned an empty response.")
                 return LLMResponse(content=content, model=self.model)
         except urllib.error.HTTPError as e:
             err_msg = str(e)

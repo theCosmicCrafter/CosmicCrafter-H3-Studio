@@ -1,0 +1,76 @@
+{
+ "version": "1.2.0",
+ "providers": {
+  "prov_1720000001": {
+   "name": "openai",
+   "type": "openai",
+   "api_base": "https://api.openai.com/v1",
+   "api_key": "",
+   "model": "gpt-5",
+   "enabled": false,
+   "batch_vision": true
+  },
+  "prov_1720000002": {
+   "name": "anthropic",
+   "type": "anthropic",
+   "api_base": "https://api.anthropic.com/v1",
+   "api_key": "",
+   "model": "claude-3-5-sonnet-latest",
+   "enabled": false,
+   "batch_vision": true
+  },
+  "prov_1720000003": {
+   "name": "gemini",
+   "type": "gemini",
+   "api_base": "https://generativelanguage.googleapis.com/v1beta",
+   "api_key": "",
+   "model": "gemini-3.5-flash",
+   "enabled": false,
+   "batch_vision": true
+  },
+  "prov_1720000004": {
+   "name": "ollama",
+   "type": "ollama",
+   "api_base": "http://127.0.0.1:11434",
+   "model": "gemma3:27b",
+   "enabled": true,
+   "batch_vision": false
+  },
+  "prov_1720000005": {
+   "name": "llamacpp",
+   "type": "openai",
+   "api_base": "http://localhost:8080/v1",
+   "api_key": "",
+   "model": "local-model",
+   "enabled": false,
+   "batch_vision": false
+  },
+  "prov_1720000006": {
+   "name": "lmstudio",
+   "type": "openai",
+   "api_base": "http://localhost:1234/v1",
+   "api_key": "",
+   "model": "local-model",
+   "enabled": false,
+   "batch_vision": false
+  },
+  "prov_1720000007": {
+   "name": "ollama-vision",
+   "type": "ollama",
+   "api_base": "http://127.0.0.1:11434",
+   "model": "qwen3-vl:8b",
+   "enabled": true,
+   "batch_vision": true
+  }
+ },
+ "defaults": {
+  "vision_provider": "prov_1720000007",
+  "vision_model": "qwen3-vl:8b",
+  "vision_temperature": 0.2,
+  "vision_max_tokens": 4096,
+  "promptor_provider": "prov_1720000004",
+  "promptor_model": "gemma3:27b",
+  "promptor_temperature": 0.7,
+  "promptor_max_tokens": 4096
+ }
+}
