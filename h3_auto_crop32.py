@@ -1,4 +1,8 @@
+import logging
+
 import torch
+
+_LOG = logging.getLogger("h3_auto_crop32")
 
 
 class MiniMaxH3CropTo32:
@@ -45,10 +49,9 @@ class MiniMaxH3CropTo32:
 
         cropped = images[:, top:top + target_h, left:left + target_w, :]
 
-        print(
-            f"[H3 Motion Context] Source crop /32: "
-            f"{w}x{h} -> {target_w}x{target_h} "
-            f"(left={left}, top={top})"
+        _LOG.info(
+            "Source crop /32: %dx%d -> %dx%d (left=%d, top=%d)",
+            w, h, target_w, target_h, left, top,
         )
 
         return (cropped, target_w, target_h)
