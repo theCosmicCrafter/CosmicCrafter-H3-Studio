@@ -1,0 +1,15 @@
+[project]
+name = "cosmiccrafter-h3-studio"
+description = "H3 Studio: MiniMax-H3 motion context, AV masking, long-video extension, prompt toolkit and studio nodes for ComfyUI"
+version = "1.0.0"
+license = { text = "GPL-3.0-only" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/theCosmicCrafter/CosmicCrafter-H3-Studio"
+Issues = "https://github.com/theCosmicCrafter/CosmicCrafter-H3-Studio/issues"
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "H3 Studio"
+Icon = ""
