@@ -93,6 +93,7 @@ from .cosmic_h3_vram import (
     CosmicH3DynamicTilingDecoder,
     CosmicH3OptimalBucketSelector,
 )
+from .h3_frame_calc import MiniMaxH3FrameCalculator
 
 try:
     import torchaudio
@@ -1947,6 +1948,7 @@ NODE_CLASS_MAPPINGS = {
     "CosmicH3AutoregressiveExtender": CosmicH3AutoregressiveFrameExtender,
     "CosmicH3DynamicTilingDecoder": CosmicH3DynamicTilingDecoder,
     "CosmicH3OptimalBucketSelector": CosmicH3OptimalBucketSelector,
+    "MiniMaxH3FrameCalculator": MiniMaxH3FrameCalculator,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2009,5 +2011,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicH3AutoregressiveExtender": "Cosmic H3 Autoregressive Frame Extender",
     "CosmicH3DynamicTilingDecoder": "Cosmic H3 Dynamic Tiling Decoder",
     "CosmicH3OptimalBucketSelector": "Cosmic H3 Optimal Bucket Selector",
+    "MiniMaxH3FrameCalculator": "H3 Frame Calculator",
 }
 

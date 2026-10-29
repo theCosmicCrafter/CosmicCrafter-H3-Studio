@@ -2,56 +2,6 @@ import torch
 import torch.nn.functional as F
 import math
 
-class CosmicH3TemporalAttentionSharpening:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "sharpening_factor": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 3.0, "step": 0.05}),
-                "motion_speed": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 4.0, "step": 0.1}),
-                "temporal_decay_rate": ("FLOAT", {"default": 0.15, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "temperature": ("FLOAT", {"default": 0.85, "min": 0.1, "max": 2.0, "step": 0.05}),
-                "enable_topk": ("BOOLEAN", {"default": False}),
-                "topk_ratio": ("FLOAT", {"default": 0.5, "min": 0.1, "max": 1.0, "step": 0.05}),
-            }
-        }
-    
-    RETURN_TYPES = ("MODEL",)
-    FUNCTION = "patch"
-    CATEGORY = "H3 Studio/Video"
-
-    def patch(self, model, sharpening_factor, motion_speed, temporal_decay_rate, temperature, enable_topk, topk_ratio):
-        m = model.clone()
-
-        def h3_temporal_attn_hook(q, k, v, extra_options):
-            scale = 1.0 / math.sqrt(q.shape[-1])
-            sim = torch.einsum("b h i d, b h j d -> b h i j", q, k) * scale
-            
-            T = sim.shape[-2]
-            device = sim.device
-            idx = torch.arange(T, device=device)
-            dist = torch.abs(idx.unsqueeze(0) - idx.unsqueeze(1)).float()
-            
-            # Use motion_speed to adjust the power
-            decay_power = 2.0 * motion_speed
-            decay_bias = -temporal_decay_rate * (dist ** decay_power)
-            
-            sim = (sim / temperature) + decay_bias.view(1, 1, T, T) * sharpening_factor
-            
-            if enable_topk:
-                k_val = max(1, int(T * topk_ratio))
-                topk_vals, _ = torch.topk(sim, k_val, dim=-1)
-                min_topk = topk_vals[..., -1:]
-                sim = torch.where(sim >= min_topk, sim, torch.tensor(-1e4, device=device))
-                
-            attn = torch.softmax(sim, dim=-1)
-            out = torch.einsum("b h i j, b h j d -> b h i d", attn, v)
-            return out
-
-        m.set_model_attn1_replace(h3_temporal_attn_hook, "h3", "transformer", "all")
-        return (m,)
-
 class CosmicH3AdaptiveNoiseRecoupling:
     @classmethod
     def INPUT_TYPES(cls):
@@ -134,67 +84,6 @@ class CosmicH3AdaptiveNoiseRecoupling:
             return denoised + noise
 
         m.set_model_sampler_post_cfg_function(sampler_post_cfg_hook)
-        return (m,)
-
-class CosmicH3MultiPromptCameraSteering:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "conditioning_schedule": ("CONDITIONING",), # Use standard conditioning block
-                "camera_mode": ([
-                    "static", "pan_left", "pan_right", "tilt_up", "tilt_down", 
-                    "zoom_in", "zoom_out", "orbit_cw", "custom_path"
-                ],),
-                "pan_speed": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.05}),
-                "tilt_speed": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.05}),
-                "zoom_speed": ("FLOAT", {"default": 0.0, "min": -2.0, "max": 2.0, "step": 0.05}),
-                "transition_smoothness": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 2.0, "step": 0.1}),
-            }
-        }
-    
-    RETURN_TYPES = ("MODEL",)
-    FUNCTION = "patch"
-    CATEGORY = "H3 Studio/Video"
-
-    def patch(self, model, conditioning_schedule, camera_mode, pan_speed, tilt_speed, zoom_speed, transition_smoothness):
-        m = model.clone()
-        
-        # Override speeds based on preset mode
-        if camera_mode == "pan_left":
-            pan_speed = -0.5
-            tilt_speed = 0.0
-            zoom_speed = 0.0
-        elif camera_mode == "pan_right":
-            pan_speed = 0.5
-            tilt_speed = 0.0
-            zoom_speed = 0.0
-        elif camera_mode == "tilt_up":
-            tilt_speed = -0.5
-            pan_speed = 0.0
-            zoom_speed = 0.0
-        elif camera_mode == "tilt_down":
-            tilt_speed = 0.5
-            pan_speed = 0.0
-            zoom_speed = 0.0
-        elif camera_mode == "zoom_in":
-            zoom_speed = 0.5
-            pan_speed = 0.0
-            tilt_speed = 0.0
-        elif camera_mode == "zoom_out":
-            zoom_speed = -0.5
-            pan_speed = 0.0
-            tilt_speed = 0.0
-
-        def h3_camera_steering_hook(q, k, v, extra_options):
-            scale = 1.0 / math.sqrt(q.shape[-1])
-            sim = torch.einsum("b h i d, b h j d -> b h i j", q, k) * scale
-            attn = torch.softmax(sim, dim=-1)
-            out = torch.einsum("b h i j, b h j d -> b h i d", attn, v)
-            return out
-
-        m.set_model_attn2_replace(h3_camera_steering_hook, "h3", "transformer", "all")
         return (m,)
 
 class FlowProjectionLayer(torch.nn.Module):

@@ -335,3 +335,10 @@ Cosmic Nodes V2 had grown a second, newer H3 implementation while this fork stil
 ### License note
 
 The moved code stays under its MIT authorship inside this GPL-3.0 pack (MIT relicensing upward is permitted); nothing GPL flowed back into the MIT monolith.
+
+### Dead-end sweep (same update)
+
+- `sampler.py` deleted: a stale 7,000-line duplicate of `H3LongVideos` that was never imported here (it also imports `.overlay`, which lives only in the standalone MiniMax-H3-Longvideos pack — that pack is self-contained and remains the real home for the long-video sampler).
+- `cosmic_crafter_director.py` deleted: an abandoned LTX Director port that was never imported and could never work (it imports `.prompt_relay`, a module that does not exist). The live Director node and its `/cosmic_crafter_director_*` routes are unaffected.
+- `h3_frame_calc.py` wired in: `MiniMaxH3FrameCalculator` was complete but never imported — now registered (`H3 Studio/Conditioning`) so the 17k+5 frame-grid helper actually ships.
+- `CosmicH3TemporalAttentionSharpening` and `CosmicH3MultiPromptCameraSteering` removed from `cosmic_h3_advanced.py`: unregistered experiments — the camera-steering hook was a passthrough that ignored its own inputs (recoverable via git history if ever wanted).
