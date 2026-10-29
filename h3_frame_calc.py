@@ -212,7 +212,7 @@ class MiniMaxH3FrameCalculator:
     RETURN_NAMES = ("frames", "latent_t", "audio_latent_t", "duration_seconds",
                     "remainder_seconds", "clips_to_cover", "report")
     FUNCTION = "calculate"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Turn an audio clip (or a duration) into the frame count H3 can actually "
         "generate - its length must sit on the 17k+5 grid at 24 fps. Wire "

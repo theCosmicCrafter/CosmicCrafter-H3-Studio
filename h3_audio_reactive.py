@@ -489,7 +489,7 @@ class MiniMaxH3AudioAnalyze:
     RETURN_TYPES = ("FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT")
     RETURN_NAMES = ("energy", "beats", "brightness", "onsets", "bass", "mids", "highs")
     FUNCTION = "analyze"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Extract per-frame audio features from a master song: RMS energy, "
         "beat pulse, spectral brightness, onset strength, and bass/mids/highs "
@@ -591,7 +591,7 @@ class MiniMaxH3AudioReactiveDenoise:
     RETURN_TYPES = ("FLOAT",)
     RETURN_NAMES = ("denoise_strength",)
     FUNCTION = "map_strength"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Map any per-frame audio curve to a single denoise strength value. "
         "Wire the output into a sampler's denoise input to make generation "
@@ -672,7 +672,7 @@ class MiniMaxH3AudioCurveRemap:
     RETURN_TYPES = ("FLOAT",)
     RETURN_NAMES = ("curve",)
     FUNCTION = "remap"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Remap any per-frame audio curve with smoothing, power-law shaping, "
         "thresholding, and range scaling.  Chain multiple instances for "

@@ -400,7 +400,7 @@ class MiniMaxH3ExistingVideoMaskedContext:
     RETURN_TYPES = ("LATENT", "INT")
     RETURN_NAMES = ("latent", "trim_frames")
     FUNCTION = "prepare"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Prepare an existing decoded video as an exact preserved H3 AV prefix. "
         "The source tail is normalized to H3 timing, VAE-encoded into the target "
@@ -616,7 +616,7 @@ class MiniMaxH3GeneratedAVMaskedContext:
     RETURN_TYPES = ("LATENT", "INT")
     RETURN_NAMES = ("latent", "trim_frames")
     FUNCTION = "prepare"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Chain generated H3 clips without a decode/re-encode round trip. The "
         "previous clip's final joint video/audio latent run is copied into the "
@@ -741,7 +741,7 @@ class MiniMaxH3StartMaskedContext:
     RETURN_TYPES = ("LATENT", "INT")
     RETURN_NAMES = ("latent", "trim_frames")
     FUNCTION = "prepare"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Checkpoint-free Extension-1 start selector. Existing Video requests decoded source AV; "
         "T2V/I2V request the live generated starter latent."
@@ -817,7 +817,7 @@ class MiniMaxH3AssembleExtension:
     RETURN_TYPES = ("IMAGE", "AUDIO")
     RETURN_NAMES = ("images", "audio")
     FUNCTION = "assemble"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Concatenate the canonical source and the trimmed H3 continuation. "
         "No crossfade: both audio pieces are resampled/matched to exact frame "

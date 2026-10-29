@@ -285,7 +285,7 @@ class MiniMaxH3MaskedAVBridge:
     RETURN_TYPES = ("LATENT", "INT", "INT")
     RETURN_NAMES = ("latent", "middle_frames", "preserve_frames")
     FUNCTION = "prepare"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Create a true two-ended H3 AV masked bridge. The ending of the first "
         "clip and beginning of the second clip are encoded into the target latent "

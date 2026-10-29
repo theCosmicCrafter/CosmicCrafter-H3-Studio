@@ -17,7 +17,7 @@ class MiniMaxH3CropTo32:
     RETURN_TYPES = ("IMAGE", "INT", "INT")
     RETURN_NAMES = ("images", "width", "height")
     FUNCTION = "crop_to_32"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Center-crop source video frames down to the nearest width and height "
         "divisible by 32 and output the resulting dimensions for the H3 target."
@@ -87,7 +87,7 @@ class MiniMaxH3StartCanvasSelector:
     RETURN_TYPES = ("INT", "INT")
     RETURN_NAMES = ("width", "height")
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Choose one shared H3 generation canvas for the masked AV extension "
         "workflow. In load_video mode it reuses the cropped source-video size; "

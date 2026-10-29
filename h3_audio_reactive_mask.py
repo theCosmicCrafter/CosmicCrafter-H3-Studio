@@ -733,7 +733,7 @@ class MiniMaxH3SourceToLatent:
     RETURN_TYPES = ("LATENT",)
     RETURN_NAMES = ("latent",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Fill an H3 AV latent's video stream with encoded source frames so a "
         "noise mask has real content to preserve. Without this, masking an "
@@ -835,7 +835,7 @@ class MiniMaxH3MaskEmitter:
     RETURN_TYPES = ("MASK", "INT")
     RETURN_NAMES = ("mask", "frame_count")
     FUNCTION = "emit"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Emit a MASK batch of a set length to seed particle systems and other "
         "temporal mask nodes, which otherwise inherit their frame count from "
@@ -955,7 +955,7 @@ class MiniMaxH3AudioCurveToMask:
     RETURN_TYPES = ("MASK", "FLOAT")
     RETURN_NAMES = ("mask", "shaped_curve")
     FUNCTION = "render"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Turn a per-frame audio curve into an animated MASK. Replaces the "
         "external FeatureToMask dependency and keeps the shaped curve available "
@@ -1010,7 +1010,7 @@ class MiniMaxH3MaskComposite:
     RETURN_TYPES = ("MASK",)
     RETURN_NAMES = ("mask",)
     FUNCTION = "composite"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Composite two MASK streams with automatic frame/resolution matching. "
         "A 1-frame subject mask is repeated across the audio mask's frames "
@@ -1085,7 +1085,7 @@ class MiniMaxH3LatentNoiseMask:
     RETURN_TYPES = ("LATENT", "MASK")
     RETURN_NAMES = ("latent", "latent_mask_preview")
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "H3-aware replacement for SetLatentNoiseMask. Builds the mask directly "
         "at the latent's exact video and audio shapes, aggregating source "

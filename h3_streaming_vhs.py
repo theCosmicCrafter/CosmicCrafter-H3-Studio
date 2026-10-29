@@ -553,7 +553,7 @@ class MiniMaxH3StreamLiveExtensionAVToVHS:
     RETURN_NAMES = ("Filenames",)
     FUNCTION = "stream_to_vhs"
     OUTPUT_NODE = True
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Low-RAM final AV Extension output. Decodes one H3 clip at a time, keeps "
         "only the effective visual seam tail, streams frames into VHS H.264 MP4, "
@@ -754,7 +754,7 @@ class MiniMaxH3FinalizeVHSOutput:
     RETURN_TYPES = ()
     FUNCTION = "finalize"
     OUTPUT_NODE = True
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Execution sink for H3 direct-stream final outputs. Keeps per-clip VHS "
         "previews scheduler-prioritized while preserving the low-RAM final stream."
@@ -808,7 +808,7 @@ class MiniMaxH3StreamLiveMusicVideoToVHS:
     # the nearer VAEDecode -> VHS preview branches win scheduler priority.
     OUTPUT_NODE = False
     HAS_INTERMEDIATE_OUTPUT = True
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Low-RAM final Music Video output. Decodes one H3 clip at a time, keeps "
         "only the effective visual seam tail, streams directly into VHS H.264 MP4, "

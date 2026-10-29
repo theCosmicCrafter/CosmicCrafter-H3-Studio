@@ -309,3 +309,29 @@ ComfyUI PR #15375 changed its native H3 mask integration on 2026-08-15: mask-gri
 ### Compatibility note
 
 Update-5 disk-checkpoint long-form nodes are no longer registered in Update 6. Saved workflows containing those historical checkpoint nodes must be migrated to the current direct-latent workflows.
+
+---
+
+## H3 consolidation — single home for all MiniMax-H3 nodes — 2026-09-02
+
+Cosmic Nodes V2 had grown a second, newer H3 implementation while this fork still shipped the older 1038lab-derived `h3_promptor` subtree. Both packs also registered `CosmicH3Promptor` / `CosmicH3VisionAnalyzer`, so which class a user got depended on load order. This update makes H3-Studio the one home for everything MiniMax-H3.
+
+### Moved in from `cosmic_nodes_v2` (MIT, authored in-repo)
+
+- `h3_prompt/` — the clean-room prompt toolkit: `CosmicH3Promptor`, `CosmicH3VisionAnalyzer`, `CosmicH3VideoForensics` plus the `_spec`/`_validate`/`_providers`/`_forensics` helpers and a fresh `_routes.py` serving `/cosmic_h3/models`.
+- `cosmic_h3_advanced.py`, `cosmic_h3_context.py`, `cosmic_h3_vram.py` — 7 vfx nodes (noise recoupling, optical-flow injector, sliding context window, autoregressive frame extender, dynamic tiling decoder, optimal bucket selector).
+- `docs/CosmicH3*.md` — the four matching doc pages.
+
+### Retired
+
+- `h3_promptor/` — the 1038lab-derived GPL promptor subtree (remains in git history). Its feature surface is covered or superseded by the rewrite: provider auto-discovery, vision pipeline, staged brief via `spec.system_prompt`, plus new grammar repair and video forensics. Not ported: reference-count tag widgets, Chinese output mode, the unused `/cosmic_h3/free_vram` route.
+
+### Compatibility
+
+- `H3_Promptor` and `H3_Vision_Analyzer` now alias the new classes, so old workflows deserialize onto them; `[Vision]`/`[LLM]`/`[Embed]` model-name tags from old saves are stripped in `_clean_model_name`.
+- `/cosmic_h3/models` keeps its response contract; `js/h3_dynamic_models.js` was rewritten for the new widgets (free-text model field becomes a live combo; in-node prompt preview via the node's `ui.text`).
+- Categories normalized to the `H3 Studio/…` family (`conditioning/minimax` and `Cosmic/Video/H3` retired).
+
+### License note
+
+The moved code stays under its MIT authorship inside this GPL-3.0 pack (MIT relicensing upward is permitted); nothing GPL flowed back into the MIT monolith.

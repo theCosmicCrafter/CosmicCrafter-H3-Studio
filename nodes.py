@@ -76,7 +76,23 @@ from .h3_audio_reactive import (
     MiniMaxH3AudioCurveRemap,
 )
 from .cosmic_crafter_video_timing import CosmicCrafterVideoTiming
-from .h3_promptor import H3_Promptor, H3_Vision_Analyzer
+from .h3_prompt import (
+    CosmicH3Promptor,
+    CosmicH3VisionAnalyzer,
+    CosmicH3VideoForensics,
+)
+from .cosmic_h3_advanced import (
+    CosmicH3AdaptiveNoiseRecoupling,
+    CosmicH3OpticalFlowMotionBucket,
+)
+from .cosmic_h3_context import (
+    CosmicH3SlidingContextWindow,
+    CosmicH3AutoregressiveFrameExtender,
+)
+from .cosmic_h3_vram import (
+    CosmicH3DynamicTilingDecoder,
+    CosmicH3OptimalBucketSelector,
+)
 
 try:
     import torchaudio
@@ -308,7 +324,7 @@ class MiniMaxH3MotionContext:
     RETURN_TYPES = ("CONDITIONING", "INT")
     RETURN_NAMES = ("conditioning", "trim_frames")
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = ("Pin a run of consecutive frames from a previous clip as "
                    "never-denoised conditioning rows, so the model reads real "
                    "motion instead of guessing it from a single still.")
@@ -515,7 +531,7 @@ class MiniMaxH3MotionContextTrim:
     RETURN_TYPES = ("IMAGE", "AUDIO", "IMAGE", "INT")
     RETURN_NAMES = ("images", "audio", "crossfade_images", "crossfade_frames")
     FUNCTION = "trim"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = ("Remove the leading pinned frames from a decoded H3 clip, "
                    "trimming picture and sound by the same duration.")
 
@@ -684,7 +700,7 @@ class MiniMaxH3MotionContextSaveLatent:
     RETURN_NAMES = ("latent_path",)
     FUNCTION = "save"
     OUTPUT_NODE = True
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = ("Save the sampler's AV latent so the next run's Motion "
                    "Context node can pin audio from it via the matching "
                    "Load node.")
@@ -761,7 +777,7 @@ class MiniMaxH3MotionContextLoadLatent:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "load"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = ("Load a latent saved by H3 Motion Context Save Latent, "
                    "for the context_latent input only.")
 
@@ -874,7 +890,7 @@ class MiniMaxH3CustomKeyframes:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Pin still-image MiniMax H3 keyframes at arbitrary output-frame "
         "positions. Starts with 3 keyframes; use + Add keyframe to add more."
@@ -1042,7 +1058,7 @@ class MiniMaxH3MusicVideoController:
     RETURN_TYPES = ("INT", "STRING")
     RETURN_NAMES = ("active_clips", "preview_mode")
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Workflow controller for the checkpoint-free H3 Music Video example. "
         "Its frontend companion applies real ComfyUI bypass mode to tagged clip/preview groups; "
@@ -1092,7 +1108,7 @@ class MiniMaxH3AVExtensionController:
     RETURN_TYPES = ("STRING", "INT", "INT", "STRING")
     RETURN_NAMES = ("start_mode", "active_extensions", "audio_feather_ticks", "preview_mode")
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Workflow controller for the H3 AV Extension example. Its frontend companion applies real ComfyUI bypass mode to tagged groups; backend outputs drive lazy routing and the final streaming path."
     )
@@ -1132,7 +1148,7 @@ class MiniMaxH3ExtensionStartMode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("start_mode",)
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "One global switch for the masked AV extension workflow. The user-facing "
         "choice is mapped to the internal load_video/generate_starter mode used "
@@ -1168,7 +1184,7 @@ class MiniMaxH3OptionalStartFrame:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("first_frame",)
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = "Optional starter first frame: disabled gives T2V, enabled gives I2V."
 
     def check_lazy_status(self, enabled, image=None):
@@ -1203,7 +1219,7 @@ class MiniMaxH3OptionalReferenceImage:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("reference_image",)
     FUNCTION = "select"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Optional global image-reference slot. Disabled slots return None and "
         "are ignored by native MiniMaxH3ReferenceToVideo."
@@ -1306,7 +1322,7 @@ class MiniMaxH3CustomAudio:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
 
     def apply(self, conditioning, audio_vae, latent, audio_state, indexing="1-based", align="end", **kwargs):
         _ensure_h3_runtime_patches()
@@ -1358,7 +1374,7 @@ class MiniMaxH3CustomVideo:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
 
     def apply(self, conditioning, vae, latent, video_state, indexing="1-based", crop="disabled", audio_vae=None, **kwargs):
         _ensure_h3_runtime_patches()
@@ -1432,7 +1448,7 @@ class MiniMaxH3Timeline:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = "CosmicCrafter Visual Timeline Studio: drop images, video clips, and audio stems at exact frame positions on an NLE timeline canvas."
 
     def apply(self, conditioning, latent, timeline_state, crop="disabled", **kwargs):
@@ -1557,7 +1573,7 @@ class CosmicCrafterDirector:
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("conditioning",)
     FUNCTION = "apply"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Turn the CosmicCrafter timeline into H3 conditioning: image keyframes, "
         "audio refs and motion guides, clipped to the active frame range."
@@ -1919,10 +1935,18 @@ NODE_CLASS_MAPPINGS = {
     "CosmicCrafterSongMaskedAVContext": MiniMaxH3SongMaskedAVContext,
     "CosmicCrafterStreamLiveMusicVideoToVHS": MiniMaxH3StreamLiveMusicVideoToVHS,
     "CosmicCrafterVideoTiming": CosmicCrafterVideoTiming,
-    "H3_Promptor": H3_Promptor,
-    "H3_Vision_Analyzer": H3_Vision_Analyzer,
-    "CosmicH3Promptor": H3_Promptor,
-    "CosmicH3VisionAnalyzer": H3_Vision_Analyzer,
+    "H3_Promptor": CosmicH3Promptor,
+    "H3_Vision_Analyzer": CosmicH3VisionAnalyzer,
+    "CosmicH3Promptor": CosmicH3Promptor,
+    "CosmicH3VisionAnalyzer": CosmicH3VisionAnalyzer,
+    "CosmicH3VideoForensics": CosmicH3VideoForensics,
+    "CosmicH3AdaptiveNoiseRecoupling": CosmicH3AdaptiveNoiseRecoupling,
+    "CosmicH3OpticalFlowMotionBucket": CosmicH3OpticalFlowMotionBucket,
+    "CosmicH3SlidingContextWindow": CosmicH3SlidingContextWindow,
+    "CosmicH3AutoregressiveFrameExtender": CosmicH3AutoregressiveFrameExtender,
+    "CosmicH3AutoregressiveExtender": CosmicH3AutoregressiveFrameExtender,
+    "CosmicH3DynamicTilingDecoder": CosmicH3DynamicTilingDecoder,
+    "CosmicH3OptimalBucketSelector": CosmicH3OptimalBucketSelector,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1977,5 +2001,13 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "H3_Vision_Analyzer": "Cosmic MiniMax-H3 Vision Analyzer (Dynamic VLM)",
     "CosmicH3Promptor": "Cosmic MiniMax-H3 Promptor",
     "CosmicH3VisionAnalyzer": "Cosmic MiniMax-H3 Vision Analyzer",
+    "CosmicH3VideoForensics": "Cosmic MiniMax-H3 Video Forensics",
+    "CosmicH3AdaptiveNoiseRecoupling": "Cosmic H3 Adaptive Noise Recoupling",
+    "CosmicH3OpticalFlowMotionBucket": "Cosmic H3 Optical Flow Injector",
+    "CosmicH3SlidingContextWindow": "Cosmic H3 Sliding Context Window",
+    "CosmicH3AutoregressiveFrameExtender": "Cosmic H3 Autoregressive Frame Extender",
+    "CosmicH3AutoregressiveExtender": "Cosmic H3 Autoregressive Frame Extender",
+    "CosmicH3DynamicTilingDecoder": "Cosmic H3 Dynamic Tiling Decoder",
+    "CosmicH3OptimalBucketSelector": "Cosmic H3 Optimal Bucket Selector",
 }
 

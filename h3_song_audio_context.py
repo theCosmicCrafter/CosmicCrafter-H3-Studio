@@ -232,7 +232,7 @@ class MiniMaxH3SongMaskedAVContext:
     RETURN_TYPES = ("LATENT", "INT", "AUDIO")
     RETURN_NAMES = ("latent", "trim_frames", "clip_audio")
     FUNCTION = "prepare"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Write an exact master-song slice into the target H3 audio latent and protect the entire audio stream from denoising. For continuations, prefer a previous live H3 source_latent so the video tail is copied directly without decode/re-encode."
     )

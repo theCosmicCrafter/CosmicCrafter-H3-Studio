@@ -50,7 +50,7 @@ class CosmicCrafterVideoTiming:
     RETURN_TYPES = ("FLOAT", "FLOAT", "INT")
     RETURN_NAMES = ("frame_rate", "seconds", "frames")
     FUNCTION = "resolve"
-    CATEGORY = "conditioning/minimax"
+    CATEGORY = "H3 Studio/Conditioning"
     DESCRIPTION = (
         "Resolve frame_rate, seconds and frames from any combination of inputs "
         "as mutually consistent outputs. frames overrides seconds when non-zero. "
