@@ -1,0 +1,36 @@
+{
+  "scene": "examples/prefixstream_scenes/s1_talking_chain.json",
+  "arms": {
+    "base": {},
+    "noise_tail05": {
+      "timeline": {
+        "context_noise": true
+      },
+      "graph": {
+        "ps_tail": {
+          "class_type": "H3C_SigmasTail",
+          "inputs": {
+            "sigmas": [
+              "1071_994",
+              0
+            ],
+            "tail_steps": 3,
+            "strength": 0.5,
+            "segment": [
+              "1672",
+              3
+            ]
+          }
+        },
+        "116": {
+          "inputs": {
+            "sigmas": [
+              "ps_tail",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

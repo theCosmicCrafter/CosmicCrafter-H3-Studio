@@ -1,0 +1,11 @@
+{
+  "scene": "examples/prefixstream_scenes/s2_walk_talk.json",
+  "arms": {
+    "base": {},
+    "noguide": {
+      "timeline": {
+        "continuation_guide": false
+      }
+    }
+  }
+}

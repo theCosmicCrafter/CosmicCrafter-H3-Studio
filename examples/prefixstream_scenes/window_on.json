@@ -1,0 +1,30 @@
+{
+  "name": "PrefixStream wave 1: window, memory on",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": true,
+    "context_frames": 39,
+    "height": 544,
+    "ref_image_size": "match",
+    "width": 960
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "id": "window",
+        "frames": 124,
+        "seed": 42001,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, overcast daylight with light rain. An over-the-shoulder shot frames a woman in a yellow raincoat standing at a large window. Through the glass, across a cobbled courtyard, the house opposite is clearly visible: a narrow three-story red-brick house with a bright red front door in the center of the ground floor, two white-framed windows on each upper floor and a black iron wall lamp beside the door. The camera pushes slowly toward the glass.\n\noverall_soundscape: Rain tapping on the window and soft room tone.\n\nnon_diegetic_music: N/A"
+      },
+      {
+        "id": "outside",
+        "cut": true,
+        "frames": 124,
+        "seed": 42002,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, overcast daylight with light rain. Outside in the cobbled courtyard, a ground-level wide shot faces the house opposite the window. The woman in the yellow raincoat walks across the courtyard toward its front door.\n\noverall_soundscape: Steady rain and footsteps on wet cobblestones.\n\nnon_diegetic_music: N/A",
+        "memory": "scene"
+      }
+    ]
+  }
+}

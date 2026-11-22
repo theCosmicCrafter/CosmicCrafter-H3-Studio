@@ -1,0 +1,636 @@
+{
+  "id": "b6d6b4a8-3c4a-4d9b-9a50-5f0a2f6c1e21",
+  "revision": 0,
+  "last_node_id": 35,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 22,
+      "type": "H3C_PH3ImageStill",
+      "pos": [
+        20,
+        0
+      ],
+      "size": [
+        420,
+        640
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "diffusion_model",
+          "name": "diffusion_model",
+          "type": "COMBO",
+          "widget": {
+            "name": "diffusion_model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_encoder",
+          "name": "text_encoder",
+          "type": "COMBO",
+          "widget": {
+            "name": "text_encoder"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "COMBO",
+          "widget": {
+            "name": "vae"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "instruction",
+          "name": "instruction",
+          "type": "STRING",
+          "widget": {
+            "name": "instruction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "prompt_upsampler",
+          "name": "prompt_upsampler",
+          "type": "COMBO",
+          "widget": {
+            "name": "prompt_upsampler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "image_1",
+          "name": "images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_2",
+          "name": "images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_3",
+          "name": "images.image_3",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_4",
+          "name": "images.image_4",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_5",
+          "name": "images.image_5",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_6",
+          "name": "images.image_6",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_7",
+          "name": "images.image_7",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "image_8",
+          "name": "images.image_8",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "image",
+          "name": "image",
+          "type": "IMAGE",
+          "links": [
+            2
+          ]
+        },
+        {
+          "localized_name": "still_recipe",
+          "name": "still_recipe",
+          "type": "H3C_STILL_RECIPE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "P-H3-Image Still",
+      "properties": {
+        "Node name for S&R": "H3C_PH3ImageStill"
+      },
+      "widgets_values": [
+        "p-h3-image_int8_convrot.safetensors",
+        "p-h3-image_text_encoder_bf16.safetensors",
+        "p-h3-image_vae_int8_convrot.safetensors",
+        "A detailed cinematic still of an adult in a blue jacket seated in a bright living room.",
+        "",
+        42,
+        "fixed",
+        1024,
+        576,
+        "off"
+      ]
+    },
+    {
+      "id": 21,
+      "type": "SaveImage",
+      "pos": [
+        480,
+        400
+      ],
+      "size": [
+        350,
+        240
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 2,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        },
+        {
+          "name": "filename_prefix",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "filename_prefix"
+          }
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "P-H3-Image_stills/standalone"
+      ],
+      "title": "Standalone still collector (enable to save stills)"
+    },
+    {
+      "id": 24,
+      "type": "H3C_Timeline",
+      "pos": [
+        950,
+        0
+      ],
+      "size": [
+        650,
+        720
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": null
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "localized_name": "audio_vae",
+          "name": "audio_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "localized_name": "image1",
+          "name": "images.image1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "audio1",
+          "name": "audios.audio1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "shape": 7,
+          "type": "CONDITIONING",
+          "link": null
+        },
+        {
+          "localized_name": "still_recipe",
+          "name": "still_recipe",
+          "shape": 7,
+          "type": "H3C_STILL_RECIPE",
+          "link": 3
+        },
+        {
+          "localized_name": "story",
+          "name": "story",
+          "shape": 7,
+          "type": "H3C_STORY",
+          "link": 4
+        },
+        {
+          "localized_name": "video1",
+          "name": "videos.video1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "localized_name": "video_audio1",
+          "name": "video_audios.video_audio1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "widget": {
+            "name": "name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "context_frames",
+          "name": "context_frames",
+          "type": "COMBO",
+          "widget": {
+            "name": "context_frames"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "carry_audio",
+          "name": "carry_audio",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "carry_audio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ref_image_size",
+          "name": "ref_image_size",
+          "type": "COMBO",
+          "widget": {
+            "name": "ref_image_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "timeline",
+          "name": "timeline",
+          "type": "STRING",
+          "widget": {
+            "name": "timeline"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": []
+        },
+        {
+          "localized_name": "latent",
+          "name": "latent",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "localized_name": "segment",
+          "name": "segment",
+          "type": "H3C_SEGMENT",
+          "links": []
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "localized_name": "info",
+          "name": "info",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3C_Timeline"
+      },
+      "widgets_values": [
+        "ph3_image_story",
+        1024,
+        576,
+        "39",
+        true,
+        "match",
+        "{\"version\":1,\"boxes\":[]}"
+      ]
+    },
+    {
+      "id": 35,
+      "type": "H3C_Story",
+      "pos": [
+        -520,
+        500
+      ],
+      "size": [
+        350,
+        240
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "idea",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "idea"
+          }
+        },
+        {
+          "name": "base_url",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "base_url"
+          }
+        },
+        {
+          "name": "model",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "model"
+          }
+        },
+        {
+          "name": "pictures",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "pictures"
+          }
+        },
+        {
+          "name": "scope",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "scope"
+          }
+        },
+        {
+          "name": "state",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "state"
+          }
+        },
+        {
+          "name": "free_vram",
+          "type": "BOOLEAN",
+          "link": null,
+          "widget": {
+            "name": "free_vram"
+          }
+        },
+        {
+          "name": "total_seconds",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "total_seconds"
+          }
+        },
+        {
+          "name": "thinking",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "thinking"
+          }
+        },
+        {
+          "name": "writing_mode",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "writing_mode"
+          }
+        },
+        {
+          "name": "vision_base_url",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "vision_base_url"
+          }
+        },
+        {
+          "name": "vision_model",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "vision_model"
+          }
+        },
+        {
+          "name": "template",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "template"
+          }
+        },
+        {
+          "name": "story_thinking",
+          "type": "COMBO",
+          "link": null,
+          "widget": {
+            "name": "story_thinking"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "H3C_STORY",
+          "type": "H3C_STORY",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "H3C_Story"
+      },
+      "widgets_values": [
+        "",
+        "https://api.openai.com/v1",
+        "",
+        true,
+        "empty boxes",
+        "{}",
+        true,
+        0,
+        "medium",
+        "fast",
+        "",
+        "",
+        "",
+        "same as boxes"
+      ]
+    }
+  ],
+  "links": [
+    [
+      2,
+      22,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      22,
+      1,
+      24,
+      6,
+      "H3C_STILL_RECIPE"
+    ],
+    [
+      4,
+      35,
+      0,
+      24,
+      7,
+      "H3C_STORY"
+    ]
+  ],
+  "groups": [],
+  "definitions": {
+    "subgraphs": []
+  },
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        50,
+        50
+      ]
+    }
+  },
+  "version": 0.4
+}

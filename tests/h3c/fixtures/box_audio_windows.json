@@ -1,0 +1,7 @@
+{
+  "clip": {"slot":"audio1","start":0.5,"source_start":30,"duration":6},
+  "origin": {"source":"audio1"},
+  "boxes": [{"id":"a","start":0,"duration":4},{"id":"b","start":4,"duration":4}],
+  "bindings": {"a":{"offset":0.5,"source_start":30,"duration":3.5},"b":{"offset":0,"source_start":33.5,"duration":2.5}},
+  "resolved": [{"box":"a","offset":0.5,"start":0.5,"source_start":30,"duration":3.5},{"box":"b","offset":0,"start":4,"source_start":33.5,"duration":2.5}]
+}

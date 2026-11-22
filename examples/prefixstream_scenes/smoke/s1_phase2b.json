@@ -1,0 +1,96 @@
+{
+  "scene": "examples/prefixstream_scenes/s1_talking_chain.json",
+  "arms": {
+    "base": {},
+    "noise": {
+      "timeline": {
+        "context_noise": true
+      }
+    },
+    "refine1": {
+      "graph": {
+        "ps_split": {
+          "class_type": "SplitSigmas",
+          "inputs": {
+            "sigmas": [
+              "1071_994",
+              0
+            ],
+            "step": 7
+          }
+        },
+        "ps_noise": {
+          "class_type": "RandomNoise",
+          "inputs": {
+            "noise_seed": 777
+          }
+        },
+        "ps_refine": {
+          "class_type": "SamplerCustomAdvanced",
+          "inputs": {
+            "noise": [
+              "ps_noise",
+              0
+            ],
+            "guider": [
+              "115",
+              0
+            ],
+            "sampler": [
+              "1071_1587",
+              0
+            ],
+            "sigmas": [
+              "ps_split",
+              1
+            ],
+            "latent_image": [
+              "116",
+              0
+            ]
+          }
+        },
+        "118": {
+          "inputs": {
+            "samples": [
+              "ps_refine",
+              0
+            ]
+          }
+        },
+        "1405": {
+          "inputs": {
+            "on_false": [
+              "ps_refine",
+              0
+            ]
+          }
+        },
+        "orrery_captured_delivery": {
+          "inputs": {
+            "latent": [
+              "ps_refine",
+              0
+            ]
+          }
+        },
+        "1538": {
+          "inputs": {
+            "value": [
+              "ps_refine",
+              0
+            ]
+          }
+        },
+        "1537": {
+          "inputs": {
+            "samples": [
+              "ps_refine",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

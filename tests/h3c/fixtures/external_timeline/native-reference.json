@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "example-native-reference",
+  "timeline": {
+    "version": 1,
+    "prompt": "Soft evening light.",
+    "boxes": [
+      {
+        "id": "opening",
+        "frames": 192,
+        "prompt": "The traveler from @image9 walks through the carriage in @image2."
+      }
+    ],
+    "consumer": {
+      "brief": "Any consumer, any creative brief"
+    }
+  },
+  "settings": {},
+  "workflow": {
+    "timeline_node": "20",
+    "api": {
+      "20": {
+        "class_type": "H3C_Timeline",
+        "inputs": {
+          "name": "template",
+          "width": 1344,
+          "height": 768,
+          "context_frames": "39",
+          "carry_audio": true,
+          "ref_image_size": "match",
+          "timeline": "{}",
+          "images.image2": [
+            "31",
+            0
+          ],
+          "images.image9": [
+            "32",
+            0
+          ]
+        }
+      },
+      "31": {
+        "class_type": "EmptyImage",
+        "inputs": {
+          "width": 64,
+          "height": 64,
+          "batch_size": 1,
+          "color": 0
+        }
+      },
+      "32": {
+        "class_type": "EmptyImage",
+        "inputs": {
+          "width": 64,
+          "height": 64,
+          "batch_size": 1,
+          "color": 0
+        }
+      }
+    }
+  },
+  "assets": []
+}

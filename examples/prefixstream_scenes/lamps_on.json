@@ -1,0 +1,29 @@
+{
+  "name": "PrefixStream wave 1: lamps, memory on",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": true,
+    "context_frames": 39,
+    "height": 544,
+    "ref_image_size": "match",
+    "width": 960
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "id": "dusk",
+        "frames": 124,
+        "seed": 43001,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. A static wide shot shows a quiet living room at dusk with the lamps off. Blue evening light comes through a large window. A grey sofa stands in the middle with a wooden coffee table in front of it holding a stack of books. Two table lamps with cream shades sit on side tables at each end of the sofa, and a framed landscape painting hangs above it. Nothing moves; the light dims slightly.\n\noverall_soundscape: Soft room tone and a distant car passing.\n\nnon_diegetic_music: N/A"
+      },
+      {
+        "id": "lamps",
+        "frames": 124,
+        "seed": 43002,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. The same room in the same framing: the two table lamps switch on, and warm yellow light fills the room, casting soft shadows from the sofa and the books, while the window stays blue.\n\noverall_soundscape: Two soft lamp-switch clicks and room tone.\n\nnon_diegetic_music: N/A",
+        "memory": "scene"
+      }
+    ]
+  }
+}

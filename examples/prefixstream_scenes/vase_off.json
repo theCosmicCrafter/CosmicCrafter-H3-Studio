@@ -1,0 +1,38 @@
+{
+  "name": "PrefixStream wave 1: vase, memory off",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": true,
+    "context_frames": 39,
+    "height": 544,
+    "ref_image_size": "match",
+    "width": 960
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "id": "vase",
+        "frames": 124,
+        "seed": 41001,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, bright late-morning daylight. A static wide shot shows a bright living room with a pale oak floor and a white wall. Against the wall stands a low wooden side table holding a tall blue-and-white porcelain vase. A man in his thirties with short dark hair, wearing a grey hoodie and blue jeans, walks past from left to right and bumps the side table with his hip. The vase topples off the table and shatters on the floor, and white-and-blue porcelain shards scatter across the floorboards. He stops and stares down at the floor.\n\noverall_soundscape: Footsteps on wood, a dull wooden knock as he hits the table, then a sharp ceramic crash and small pieces skittering across the floor.\n\nnon_diegetic_music: N/A"
+      },
+      {
+        "id": "exterior",
+        "cut": true,
+        "frames": 107,
+        "memory": "off",
+        "seed": 41002,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, late-morning daylight. A static wide exterior shot shows a two-story white house with a dark green front door, white window frames and a small front lawn bordered by a low hedge. Nobody is in shot. Leaves on a nearby tree move slightly in the breeze.\n\noverall_soundscape: Birdsong, leaves rustling and distant traffic.\n\nnon_diegetic_music: N/A"
+      },
+      {
+        "id": "return",
+        "cut": true,
+        "frames": 124,
+        "seed": 41003,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, late-morning daylight. Back inside the same living room, seen from the opposite corner at a low angle. The man in the grey hoodie stands near the window and makes a phone call, pacing slowly back and forth.\n\noverall_soundscape: Quiet room tone, his muffled voice on the phone and soft footsteps.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      }
+    ]
+  }
+}

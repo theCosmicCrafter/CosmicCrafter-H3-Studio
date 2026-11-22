@@ -1,0 +1,1089 @@
+{
+ "cases": [
+  {
+   "name": "partial",
+   "prompt": "subject_definitions:\r\n<Subject 1> is Zoë 😀.\r\n",
+   "expected": {
+    "sections": [
+     {
+      "key": "subject_definitions",
+      "entries": [
+       {
+        "kind": "definition",
+        "shot": null,
+        "range": {
+         "start": 22,
+         "end": 44,
+         "before": "<Subject 1> is Zoë 😀."
+        },
+        "value": {
+         "target": "<Subject 1>",
+         "description": "Zoë 😀.",
+         "sources": []
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "raw",
+   "prompt": "A quiet room. Keep this exact prose.",
+   "expected": {
+    "sections": [
+     {
+      "key": "integrated_multimodal_description",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 0,
+         "end": 36,
+         "before": "A quiet room. Keep this exact prose."
+        },
+        "value": {
+         "text": "A quiet room. Keep this exact prose."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "empty",
+   "prompt": "",
+   "expected": {
+    "sections": []
+   }
+  },
+  {
+   "name": "dialogue-masks-headers",
+   "prompt": "integrated_multimodal_description:\n[Shot 1] She says <d>[English] summary:\n[Shot 9] stay literal</d>.\n\noverall_soundscape: Rain.",
+   "expected": {
+    "sections": [
+     {
+      "key": "integrated_multimodal_description",
+      "entries": [
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 35,
+         "end": 101,
+         "before": "[Shot 1] She says <d>[English] summary:\n[Shot 9] stay literal</d>."
+        },
+        "value": {
+         "text": "She says <d>[English] summary:\n[Shot 9] stay literal</d>."
+        }
+       }
+      ]
+     },
+     {
+      "key": "overall_soundscape",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 123,
+         "end": 128,
+         "before": "Rain."
+        },
+        "value": {
+         "text": "Rain."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "unknown-section",
+   "prompt": "summary: Keep this.\ncustom_section:\nAn unknown instruction.\n\ndetailed_description:\n[Shot 1] She waits.",
+   "expected": {
+    "sections": [
+     {
+      "key": "summary",
+      "entries": [
+       {
+        "kind": "summary",
+        "shot": null,
+        "range": {
+         "start": 9,
+         "end": 19,
+         "before": "Keep this."
+        },
+        "value": {
+         "taskTypes": [],
+         "text": "Keep this."
+        }
+       }
+      ]
+     },
+     {
+      "key": "existing",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 20,
+         "end": 59,
+         "before": "custom_section:\nAn unknown instruction."
+        },
+        "value": {
+         "text": "custom_section:\nAn unknown instruction."
+        }
+       }
+      ]
+     },
+     {
+      "key": "detailed_description",
+      "entries": [
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 83,
+         "end": 102,
+         "before": "[Shot 1] She waits."
+        },
+        "value": {
+         "text": "She waits."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "duplicate-section",
+   "prompt": "summary: One.\nsummary: Two.\ndetailed_description:\n[Shot 1] A room.",
+   "expected": {
+    "sections": [
+     {
+      "key": "existing",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 0,
+         "end": 13,
+         "before": "summary: One."
+        },
+        "value": {
+         "text": "summary: One."
+        }
+       }
+      ]
+     },
+     {
+      "key": "existing",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 14,
+         "end": 27,
+         "before": "summary: Two."
+        },
+        "value": {
+         "text": "summary: Two."
+        }
+       }
+      ]
+     },
+     {
+      "key": "detailed_description",
+      "entries": [
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 50,
+         "end": 66,
+         "before": "[Shot 1] A room."
+        },
+        "value": {
+         "text": "A room."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "references",
+   "prompt": "subject_definitions:\n<Subject 1> is Mara in @image17. <Subject 2> is the cup.\n\nsummary: A pause.\n\nretention_analysis:\n<Subject 1>: fully_preserved - The coat.\n\ndetailed_description:\nA painted scene.\n[Shot 1] She waits.\n\noverall_soundscape: Rain.\n\nnon_diegetic_music: Soft piano.",
+   "expected": {
+    "sections": [
+     {
+      "key": "subject_definitions",
+      "entries": [
+       {
+        "kind": "definition",
+        "shot": null,
+        "range": {
+         "start": 21,
+         "end": 53,
+         "before": "<Subject 1> is Mara in @image17."
+        },
+        "value": {
+         "target": "<Subject 1>",
+         "description": "Mara in @image17.",
+         "sources": []
+        }
+       },
+       {
+        "kind": "definition",
+        "shot": null,
+        "range": {
+         "start": 54,
+         "end": 77,
+         "before": "<Subject 2> is the cup."
+        },
+        "value": {
+         "target": "<Subject 2>",
+         "description": "the cup.",
+         "sources": []
+        }
+       }
+      ]
+     },
+     {
+      "key": "summary",
+      "entries": [
+       {
+        "kind": "summary",
+        "shot": null,
+        "range": {
+         "start": 88,
+         "end": 96,
+         "before": "A pause."
+        },
+        "value": {
+         "taskTypes": [],
+         "text": "A pause."
+        }
+       }
+      ]
+     },
+     {
+      "key": "retention_analysis",
+      "entries": [
+       {
+        "kind": "retention",
+        "shot": null,
+        "range": {
+         "start": 118,
+         "end": 158,
+         "before": "<Subject 1>: fully_preserved - The coat."
+        },
+        "value": {
+         "target": "<Subject 1>",
+         "shots": [],
+         "scope": "",
+         "relationship": "fully_preserved",
+         "detail": "The coat."
+        }
+       }
+      ]
+     },
+     {
+      "key": "detailed_description",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 182,
+         "end": 198,
+         "before": "A painted scene."
+        },
+        "value": {
+         "text": "A painted scene."
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 199,
+         "end": 218,
+         "before": "[Shot 1] She waits."
+        },
+        "value": {
+         "text": "She waits."
+        }
+       }
+      ]
+     },
+     {
+      "key": "overall_soundscape",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 240,
+         "end": 245,
+         "before": "Rain."
+        },
+        "value": {
+         "text": "Rain."
+        }
+       }
+      ]
+     },
+     {
+      "key": "non_diegetic_music",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 267,
+         "end": 278,
+         "before": "Soft piano."
+        },
+        "value": {
+         "text": "Soft piano."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "advanced",
+   "tags": [
+    {
+     "tag": "<Picture 1>",
+     "name": "image3"
+    }
+   ],
+   "prompt": "Frame 0 matches the still.\n\nsubject_definitions:\n<Subject 1> is Mara, a courier in a grey coat; face reference: @image1; reference: @image2\n<Picture 1> is the opening frame of the hangar.\n<Picture 2> is unresolved.\n\nsummary:\n[reference generation + keyframe completion] Mara crosses the hangar.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2] from behind): fully_preserved - Keep the coat.\n<Picture 1>: weak_reference\n\ndetailed_description:\nCinematic live-action.\n[Shot 1] At 0:01.500, Mara walks in.\nStyle: Cinematic\nComposition: Wide shot\nLighting: Low amber light\n  from the left.\nEffect 2 trigger: Her boot hits the floor.\nAction 1: She stops.\nAction 2: She turns.\nGaze: Down.\nGaze: Up.\nDialogue: <Subject 1> (S1), quietly, says: <d>[English] Not here.</d>\n[Shot 2] <Subject 1> waits. <Subject 1> (S1) says: <d>[English] Come on.<scenetrans></d> The audio continues seamlessly across the cut. She leaves.\nDialogue 1: broken dialogue\n[Shot 3] <Subject 2> (S2) says in an off-screen voiceover: <d>[English] Far away.<cutoff></d> while the corresponding on-screen characters' lips remain completely closed.\n\noverall_soundscape: Rain on metal.",
+   "expected": {
+    "sections": [
+     {
+      "key": "alignment",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 0,
+         "end": 26,
+         "before": "Frame 0 matches the still."
+        },
+        "value": {
+         "text": "Frame 0 matches the still."
+        }
+       }
+      ]
+     },
+     {
+      "key": "subject_definitions",
+      "entries": [
+       {
+        "kind": "definition",
+        "shot": null,
+        "range": {
+         "start": 49,
+         "end": 139,
+         "before": "<Subject 1> is Mara, a courier in a grey coat; face reference: @image1; reference: @image2"
+        },
+        "value": {
+         "target": "<Subject 1>",
+         "description": "Mara, a courier in a grey coat",
+         "sources": [
+          {
+           "slot": "image1",
+           "role": "face"
+          },
+          {
+           "slot": "image2",
+           "role": ""
+          }
+         ]
+        }
+       },
+       {
+        "kind": "definition",
+        "shot": null,
+        "range": {
+         "start": 140,
+         "end": 187,
+         "before": "<Picture 1> is the opening frame of the hangar."
+        },
+        "value": {
+         "target": "@image3",
+         "description": "the opening frame of the hangar.",
+         "sources": []
+        }
+       },
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 188,
+         "end": 214,
+         "before": "<Picture 2> is unresolved."
+        },
+        "value": {
+         "text": "is unresolved."
+        }
+       }
+      ]
+     },
+     {
+      "key": "summary",
+      "entries": [
+       {
+        "kind": "summary",
+        "shot": null,
+        "range": {
+         "start": 225,
+         "end": 294,
+         "before": "[reference generation + keyframe completion] Mara crosses the hangar."
+        },
+        "value": {
+         "taskTypes": [
+          "reference generation",
+          "keyframe completion"
+         ],
+         "text": "Mara crosses the hangar."
+        }
+       }
+      ]
+     },
+     {
+      "key": "retention_analysis",
+      "entries": [
+       {
+        "kind": "retention",
+        "shot": null,
+        "range": {
+         "start": 316,
+         "end": 405,
+         "before": "<Subject 1> (appears in [Shot 1], [Shot 2] from behind): fully_preserved - Keep the coat."
+        },
+        "value": {
+         "target": "<Subject 1>",
+         "shots": [
+          1,
+          2
+         ],
+         "scope": "from behind",
+         "relationship": "fully_preserved",
+         "detail": "Keep the coat."
+        }
+       },
+       {
+        "kind": "retention",
+        "shot": null,
+        "range": {
+         "start": 406,
+         "end": 433,
+         "before": "<Picture 1>: weak_reference"
+        },
+        "value": {
+         "target": "@image3",
+         "shots": [],
+         "scope": "",
+         "relationship": "weak_reference",
+         "detail": ""
+        }
+       }
+      ]
+     },
+     {
+      "key": "detailed_description",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 457,
+         "end": 479,
+         "before": "Cinematic live-action."
+        },
+        "value": {
+         "text": "Cinematic live-action."
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 480,
+         "end": 516,
+         "before": "[Shot 1] At 0:01.500, Mara walks in."
+        },
+        "value": {
+         "text": "Mara walks in."
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 517,
+         "end": 533,
+         "before": "Style: Cinematic"
+        },
+        "value": {
+         "key": "style",
+         "index": null,
+         "text": "Cinematic"
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 534,
+         "end": 556,
+         "before": "Composition: Wide shot"
+        },
+        "value": {
+         "key": "composition",
+         "index": null,
+         "text": "Wide shot"
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 557,
+         "end": 599,
+         "before": "Lighting: Low amber light\n  from the left."
+        },
+        "value": {
+         "key": "lighting",
+         "index": null,
+         "text": "Low amber light\nfrom the left."
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 600,
+         "end": 642,
+         "before": "Effect 2 trigger: Her boot hits the floor."
+        },
+        "value": {
+         "key": "effect_trigger",
+         "index": 2,
+         "text": "Her boot hits the floor."
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 643,
+         "end": 663,
+         "before": "Action 1: She stops."
+        },
+        "value": {
+         "key": "action",
+         "index": 1,
+         "text": "She stops."
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 664,
+         "end": 684,
+         "before": "Action 2: She turns."
+        },
+        "value": {
+         "key": "action",
+         "index": 2,
+         "text": "She turns."
+        }
+       },
+       {
+        "kind": "existing",
+        "shot": 1,
+        "range": {
+         "start": 685,
+         "end": 696,
+         "before": "Gaze: Down."
+        },
+        "value": {
+         "text": "Gaze: Down."
+        }
+       },
+       {
+        "kind": "existing",
+        "shot": 1,
+        "range": {
+         "start": 697,
+         "end": 706,
+         "before": "Gaze: Up."
+        },
+        "value": {
+         "text": "Gaze: Up."
+        }
+       },
+       {
+        "kind": "dialogue",
+        "shot": 1,
+        "range": {
+         "start": 707,
+         "end": 776,
+         "before": "Dialogue: <Subject 1> (S1), quietly, says: <d>[English] Not here.</d>"
+        },
+        "value": {
+         "speakers": [
+          "S1"
+         ],
+         "identity": "<Subject 1>",
+         "language": "English",
+         "text": "Not here.",
+         "delivery": "quietly",
+         "voiceover": false,
+         "singing": false,
+         "fromPrevious": false,
+         "toNext": false,
+         "cutoff": false,
+         "key": "dialogue",
+         "index": null
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 2,
+        "range": {
+         "start": 777,
+         "end": 804,
+         "before": "[Shot 2] <Subject 1> waits."
+        },
+        "value": {
+         "text": "<Subject 1> waits."
+        }
+       },
+       {
+        "kind": "dialogue",
+        "shot": 2,
+        "range": {
+         "start": 805,
+         "end": 912,
+         "before": "<Subject 1> (S1) says: <d>[English] Come on.<scenetrans></d> The audio continues seamlessly across the cut."
+        },
+        "value": {
+         "speakers": [
+          "S1"
+         ],
+         "identity": "<Subject 1>",
+         "language": "English",
+         "text": "Come on.",
+         "delivery": "",
+         "voiceover": false,
+         "singing": false,
+         "fromPrevious": false,
+         "toNext": true,
+         "cutoff": false,
+         "key": "dialogue",
+         "index": null
+        }
+       },
+       {
+        "kind": "existing",
+        "shot": 2,
+        "range": {
+         "start": 912,
+         "end": 924,
+         "before": " She leaves."
+        },
+        "value": {
+         "text": " She leaves."
+        }
+       },
+       {
+        "kind": "existing",
+        "shot": 2,
+        "range": {
+         "start": 925,
+         "end": 952,
+         "before": "Dialogue 1: broken dialogue"
+        },
+        "value": {
+         "text": "Dialogue 1: broken dialogue"
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 3,
+        "range": {
+         "start": 953,
+         "end": 961,
+         "before": "[Shot 3]"
+        },
+        "value": {
+         "text": ""
+        }
+       },
+       {
+        "kind": "dialogue",
+        "shot": 3,
+        "range": {
+         "start": 962,
+         "end": 1123,
+         "before": "<Subject 2> (S2) says in an off-screen voiceover: <d>[English] Far away.<cutoff></d> while the corresponding on-screen characters' lips remain completely closed."
+        },
+        "value": {
+         "speakers": [
+          "S2"
+         ],
+         "identity": "<Subject 2>",
+         "language": "English",
+         "text": "Far away.",
+         "delivery": "",
+         "voiceover": true,
+         "singing": false,
+         "fromPrevious": false,
+         "toNext": false,
+         "cutoff": true,
+         "key": "dialogue",
+         "index": null
+        }
+       }
+      ]
+     },
+     {
+      "key": "overall_soundscape",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 1145,
+         "end": 1159,
+         "before": "Rain on metal."
+        },
+        "value": {
+         "text": "Rain on metal."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "unstructured-shots",
+   "prompt": "Moody opener.\n[Shot 1] A door opens.\nLighting: Cold.\n\n[Shot 2]\n\n[Shot 3] She says <d>[English] [Shot 4] no</d> fine.",
+   "expected": {
+    "sections": [
+     {
+      "key": "integrated_multimodal_description",
+      "entries": [
+       {
+        "kind": "existing",
+        "shot": null,
+        "range": {
+         "start": 0,
+         "end": 14,
+         "before": "Moody opener.\n"
+        },
+        "value": {
+         "text": "Moody opener.\n"
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 1,
+        "range": {
+         "start": 14,
+         "end": 36,
+         "before": "[Shot 1] A door opens."
+        },
+        "value": {
+         "text": "A door opens."
+        }
+       },
+       {
+        "kind": "cue",
+        "shot": 1,
+        "range": {
+         "start": 37,
+         "end": 52,
+         "before": "Lighting: Cold."
+        },
+        "value": {
+         "key": "lighting",
+         "index": null,
+         "text": "Cold."
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 2,
+        "range": {
+         "start": 54,
+         "end": 62,
+         "before": "[Shot 2]"
+        },
+        "value": {
+         "text": ""
+        }
+       },
+       {
+        "kind": "narrative",
+        "shot": 3,
+        "range": {
+         "start": 64,
+         "end": 116,
+         "before": "[Shot 3] She says <d>[English] [Shot 4] no</d> fine."
+        },
+        "value": {
+         "text": "She says <d>[English] [Shot 4] no</d> fine."
+        }
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "fields": [
+  {
+   "key": "style",
+   "prefix": "Style",
+   "advanced": false,
+   "repeatable": false
+  },
+  {
+   "key": "composition",
+   "prefix": "Composition",
+   "advanced": false,
+   "repeatable": false
+  },
+  {
+   "key": "initial_state",
+   "prefix": "Initial state",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "trigger",
+   "prefix": "Trigger",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "action",
+   "prefix": "Action",
+   "advanced": false,
+   "repeatable": true
+  },
+  {
+   "key": "contact",
+   "prefix": "Contact",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "reaction",
+   "prefix": "Reaction",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "shot_size",
+   "prefix": "Shot size",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "camera_position",
+   "prefix": "Camera position",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "camera_movement",
+   "prefix": "Camera movement",
+   "advanced": false,
+   "repeatable": false
+  },
+  {
+   "key": "camera_direction",
+   "prefix": "Camera direction",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "camera_speed",
+   "prefix": "Camera speed",
+   "advanced": false,
+   "repeatable": false
+  },
+  {
+   "key": "camera_amplitude",
+   "prefix": "Camera amplitude",
+   "advanced": false,
+   "repeatable": false
+  },
+  {
+   "key": "camera_subject",
+   "prefix": "Camera subject",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "focus",
+   "prefix": "Focus",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "effect_trigger",
+   "prefix": "Effect N trigger",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "effect",
+   "prefix": "Effect N",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "effect_motion",
+   "prefix": "Effect N motion",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "effect_response",
+   "prefix": "Effect N response",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "physical_response",
+   "prefix": "Physical response",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "lighting",
+   "prefix": "Lighting",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "light_direction",
+   "prefix": "Light direction",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "colour_contrast",
+   "prefix": "Colour and contrast",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "reflections",
+   "prefix": "Reflections",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "atmosphere",
+   "prefix": "Atmosphere",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "materials",
+   "prefix": "Materials",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "depth_of_field",
+   "prefix": "Depth of field",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "gaze",
+   "prefix": "Gaze",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "expression",
+   "prefix": "Expression",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "breathing",
+   "prefix": "Breathing",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "posture",
+   "prefix": "Posture",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "hands",
+   "prefix": "Hands",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "continuity",
+   "prefix": "Continuity",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "recovery",
+   "prefix": "Recovery",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "end_state",
+   "prefix": "End state",
+   "advanced": true,
+   "repeatable": false
+  },
+  {
+   "key": "dialogue",
+   "prefix": "Dialogue",
+   "advanced": false,
+   "repeatable": true
+  },
+  {
+   "key": "scene_sound",
+   "prefix": "Scene sound",
+   "advanced": false,
+   "repeatable": false
+  }
+ ]
+}

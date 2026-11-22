@@ -1,0 +1,8 @@
+{
+  "partial": "subject_definitions:\r\n<Subject 1> is Zoë 😀.\r\n",
+  "raw": "A quiet room. Keep this exact prose.",
+  "dialogue": "integrated_multimodal_description:\n[Shot 1] She says <d>[English] summary:\n[Shot 9] stay literal</d>.\n\noverall_soundscape: Rain.",
+  "unknown": "summary: Keep this.\ncustom_section:\nAn unknown instruction.\n\ndetailed_description:\n[Shot 1] She waits.",
+  "duplicate": "summary: One.\nsummary: Two.\ndetailed_description:\n[Shot 1] A room.",
+  "reference": "subject_definitions:\n<Subject 1> is Mara in @image17. <Subject 2> is the cup.\n\nsummary: A pause.\n\nretention_analysis:\n<Subject 1>: fully_preserved - The coat.\n\ndetailed_description:\nA painted scene.\n[Shot 1] She waits.\n\noverall_soundscape: Rain.\n\nnon_diegetic_music: Soft piano."
+}

@@ -1,0 +1,272 @@
+{
+  "version": 1,
+  "skills": [
+    "h3-continuity-video",
+    "h3-continuity-joins",
+    "h3-continuity-timing",
+    "h3-continuity-references",
+    "h3-continuity-sound",
+    "h3-continuity-story",
+    "h3-continuity-api"
+  ],
+  "nodes": [
+    "H3C_Sequence",
+    "H3C_Continue",
+    "H3C_ContinuationModel",
+    "H3C_SigmasTail",
+    "H3C_SaveSegment",
+    "H3C_Timeline",
+    "H3C_Story",
+    "H3C_StoryTurn",
+    "H3C_StillRecipe",
+    "H3C_StillConditioning",
+    "H3C_StillImageSource",
+    "H3C_PH3ImageStill",
+    "H3C_MiniMaxH3ImageStill",
+    "H3C_MiniMaxPromptCaption",
+    "H3C_TimelineImage",
+    "H3C_ContextWindows",
+    "H3C_JoinChain",
+    "H3C_PH3StillSize",
+    "H3C_DiskCache"
+  ],
+  "features": {
+    "host": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_capabilities",
+        "h3_read_guidance"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "projects": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_list_projects",
+        "h3_get_project",
+        "h3_create_project",
+        "h3_save_project",
+        "h3_register_workflow",
+        "h3_export_workflow"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "clips_prompts_joins_memory_pins": {
+      "exposure": "data",
+      "skills": [
+        "h3-continuity-video"
+      ],
+      "tools": [
+        "h3_get_project",
+        "h3_save_project"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "shot_split": {
+      "exposure": "data",
+      "skills": [
+        "h3-continuity-joins"
+      ],
+      "tools": [
+        "h3_save_project"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "insertion_bridges": {
+      "exposure": "data",
+      "skills": [
+        "h3-continuity-joins"
+      ],
+      "tools": [
+        "h3_save_project",
+        "h3_render_video"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "long_chains": {
+      "exposure": "graph",
+      "skills": [
+        "h3-continuity-timing"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "renders_recovery": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_plan_video",
+        "h3_render_video",
+        "h3_job_status",
+        "h3_cancel_job",
+        "h3_resume_job",
+        "h3_abandon_job"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "takes": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_takes"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "previews": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-video"
+      ],
+      "tools": [
+        "h3_inspect"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "generations_checkpoints_library": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_library"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "autosave": {
+      "exposure": "guidance",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "browser_history": {
+      "exposure": "browser",
+      "skills": [
+        "h3-continuity-video"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "pictures_refmods_plates": {
+      "exposure": "data",
+      "skills": [
+        "h3-continuity-references"
+      ],
+      "tools": [
+        "h3_save_project",
+        "h3_stills"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "guides_stills_reference_candidates": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-references"
+      ],
+      "tools": [
+        "h3_stills"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "ph3_lora_sizes": {
+      "exposure": "graph",
+      "skills": [
+        "h3-continuity-references"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "audio_dialogue_text_locks": {
+      "exposure": "data",
+      "skills": [
+        "h3-continuity-sound"
+      ],
+      "tools": [
+        "h3_save_project",
+        "h3_upload_asset",
+        "h3_inspect"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "beats_waveforms_snap": {
+      "exposure": "browser",
+      "skills": [
+        "h3-continuity-sound"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "story_cast_checks": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-story"
+      ],
+      "tools": [
+        "h3_story"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "provider_configuration": {
+      "exposure": "guidance",
+      "skills": [
+        "h3-continuity-story"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "disk_cache_codec_guide_frames": {
+      "exposure": "graph",
+      "skills": [
+        "h3-continuity-timing"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "assets_media": {
+      "exposure": "tools",
+      "skills": [
+        "h3-continuity-api"
+      ],
+      "tools": [
+        "h3_upload_asset",
+        "h3_download_artifact"
+      ],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "layout_playback": {
+      "exposure": "browser",
+      "skills": [
+        "h3-continuity-video"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "replacement_bridges": {
+      "exposure": "unavailable",
+      "skills": [
+        "h3-continuity-joins"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    },
+    "guide_split_and_guide_recheck": {
+      "exposure": "retired",
+      "skills": [
+        "h3-continuity-joins"
+      ],
+      "tools": [],
+      "source": "docs/research/2026-11-08-mcp-capability-audit.md"
+    }
+  }
+}

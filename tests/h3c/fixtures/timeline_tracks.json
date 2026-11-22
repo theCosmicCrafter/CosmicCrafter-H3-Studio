@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "requires": [
+    "timeline-tracks-1"
+  ],
+  "prompt": "",
+  "tracks": [
+    {
+      "id": "v1",
+      "type": "video",
+      "name": "Video 1"
+    },
+    {
+      "id": "v2",
+      "type": "video",
+      "name": "Video 2"
+    },
+    {
+      "id": "a1",
+      "type": "audio",
+      "name": "Audio 1"
+    },
+    {
+      "id": "t1",
+      "type": "text",
+      "name": "Text 1"
+    }
+  ],
+  "boxes": [
+    {
+      "id": "A",
+      "frames": 48,
+      "exact": true,
+      "cut": true,
+      "prompt": "A field.",
+      "seed": 1,
+      "track": "v1",
+      "start": 0
+    },
+    {
+      "id": "C",
+      "frames": 48,
+      "exact": true,
+      "cut": true,
+      "prompt": "A close view.",
+      "seed": 2,
+      "track": "v2",
+      "start": 24
+    },
+    {
+      "id": "B",
+      "frames": 72,
+      "exact": true,
+      "cut": true,
+      "prompt": "The field again.",
+      "seed": 3,
+      "track": "v1",
+      "start": 48
+    }
+  ]
+}

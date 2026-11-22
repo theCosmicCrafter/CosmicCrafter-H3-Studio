@@ -1,0 +1,21 @@
+# P-H3 still prompt instructions
+
+### Phase 13: P-H3 still prompt instructions
+
+- [x] **SP1** (State: `passing` | Verification: `node tests/run.mjs; uv tool run --with mkdocs-material --with mkdocs-glightbox mkdocs build --strict --site-dir .tmp/docs-site; git diff --check`)
+  - *Behavior:* Story's image planner, snapshot writer and final still converter use Pruna P-H3-Image instructions when selected directly or through the lazy switch. Medium, one visible instant, camera, material and directional lighting, exact requested lettering and explicit keep/change edits follow the upstream model card. Saved prose retains logical reference names; native Picture ordinals and edit syntax remain code-owned.
+  - *Scope:* Implemented in `D:/development/rambrogi/work/h3c-ph3-story-prompts`, branch `fix/ph3-story-prompt-instructions`, based on origin/main `8ad6384` (includes merged P-H3 node and Story groups). Parent checkout remains at `10ce055`; all pre-existing product edits preserved. No GPU, live installation, commit or publishing requested.
+  - *Implementation:* `story_context.py` shares selected-recipe resolution with renderer detection and sets `StoryContext.image_model`; image planning/writing share `story_instructions.PH3_IMAGE`. Final conversion applies model guidance independently of video Story writing. Image-plan identity includes selected model so old P-H3 plans are replanned; generic/Qwen identity stays unchanged. Saved prompts and custom conversion text remain intact. CHANGELOG and the P-H3 setup guide describe the change.
+  - *Evidence:* 2026-11-04: Fresh full `node tests/run.mjs`: 104 JavaScript + 230 Python tests, no skips. Includes six new tests for selected switch branches, actual context-to-planner/writer routing, plan identity and final conversion with custom instructions retained. Strict MkDocs build passes using isolated uv tooling (system/portable Python lack mkdocs); `git diff --check` passes. Logs `.tmp/ph3-tests.log` and `.tmp/ph3-docs.log` in the implementation worktree. Roadmap check passes there.
+  - *Sources:* Read PrunaAI/P-H3-Image and PrunaAI/P-H3-Image-Comfy model cards using `hf download ... README.md` (only documentation downloaded), and upstream/local ComfyUI `PH3ImageConditioning`. Pruna recommends concrete image type, scene and directional light, exact quoted text, no hype words or excessive length, and explicit preservation during edits. P-H3 is image-only despite the shared H3 architecture.
+  - *Limits:* CPU instruction/routing checks only; no live LLM response or image-quality/GPU validation. Existing prepared prompts must be regenerated to receive the new instructions. Changes are uncommitted in the isolated branch.
+  - *Next:* SP2 owns the user-authorized PR, merge, tagged release and local main fast-forward.
+
+- [ ] **SP2** (State: `deferred` | Verification: `full tests; strict docs build; merged PR; annotated release tag on merge commit; GitHub release Latest; local main fast-forward`)
+  - *Behavior:* Commit the verified change, open and merge its PR, publish the next patch release, and fast-forward the original main checkout with all prior edits preserved in a named Git stash if necessary.
+  - *Scope:* User explicitly authorized PR, merge, tagged release and main fast-forward. Latest fetched main is efb6460 / v0.12.1, so target release is v0.12.2. No live installation or inference.
+  - *Evidence:* Rebased onto origin/main efb6460; changelog retains v0.12.1 and adds v0.12.2. Fresh full suite passes 105 JS + 230 Python, no skips; strict MkDocs and diff checks pass. PR/merge/tag pending.
+  - *Main reconciliation:* Original main has one local-only commit, 10ce055 (continuity planning). A literal fast-forward is impossible. Preserve it on a backup branch and preserve dirty tracked/untracked files in a named stash before aligning main with the released remote. Leave the nested .claude worktree untouched.
+  - *Next:* Push and create PR; verify GitHub checks, merge, tag v0.12.2 and publish notes, then reconcile local main with backups retained.
+
+Historical checkpoint deferred in this worktree: user explicitly requested a new main-based investigation of incompatible render overlap. Release state was inherited from an older merged branch; do not replay release actions here. Return only on an explicit release request and fresh GitHub reconciliation.

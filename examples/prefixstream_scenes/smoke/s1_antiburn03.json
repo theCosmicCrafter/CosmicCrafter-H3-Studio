@@ -1,0 +1,46 @@
+{
+  "scene": "examples/prefixstream_scenes/s1_talking_chain.json",
+  "arms": {
+    "base": {},
+    "antiburn03": {
+      "graph": {
+        "ps_lora": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": [
+              "1409",
+              0
+            ],
+            "lora_name": "h3_antiburn_universal_v1.safetensors",
+            "strength_model": 0.3
+          }
+        },
+        "ps_cm": {
+          "class_type": "H3C_ContinuationModel",
+          "inputs": {
+            "model": [
+              "1409",
+              0
+            ],
+            "segment": [
+              "1672",
+              3
+            ],
+            "continuation_model": [
+              "ps_lora",
+              0
+            ]
+          }
+        },
+        "115": {
+          "inputs": {
+            "model": [
+              "ps_cm",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

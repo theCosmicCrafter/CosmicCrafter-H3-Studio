@@ -1,0 +1,41 @@
+{
+  "name": "PrefixStream S3: landing on a Last guide, then continue",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": true,
+    "context_frames": 39,
+    "height": 544,
+    "ref_image_size": "match",
+    "width": 960
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "id": "walk",
+        "frames": 124,
+        "seed": 52001,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. Medium tracking shot following him. A busy open-air market street at midday with fruit stalls and striped awnings; he walks toward camera past the stalls. The man (S1), a man in his forties with short grey hair, a navy jacket and a phone held to his ear, talking on the phone in a relaxed voice, says: <d>[English] Yes, I'm almost there. Give me two minutes.</d>\n\noverall_soundscape: His voice, footsteps on stone, market chatter and a distant scooter.\n\nnon_diegetic_music: N/A",
+        "last": "image17"
+      },
+      {
+        "id": "corner",
+        "frames": 124,
+        "seed": 52002,
+        "memory": "off",
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. Medium tracking shot following him. The same street; he keeps walking, turns left at the corner of a bakery and the camera follows him round the corner. The man (S1), a man in his forties with short grey hair, a navy jacket and a phone held to his ear, talking on the phone in a relaxed voice, says: <d>[English] I can see the bakery now. Wait for me outside.</d>\n\noverall_soundscape: His voice, footsteps on stone, market chatter and a distant scooter.\n\nnon_diegetic_music: N/A"
+      }
+    ],
+    "pictures": [
+      {
+        "slot": "image17",
+        "title": "S2 box 1 last frame",
+        "file": {
+          "type": "input",
+          "subfolder": "ps-smoke",
+          "filename": "s3_last.png"
+        }
+      }
+    ]
+  }
+}

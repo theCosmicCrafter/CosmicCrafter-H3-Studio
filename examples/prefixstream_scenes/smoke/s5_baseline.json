@@ -1,0 +1,32 @@
+{
+  "scene": "examples/prefixstream_scenes/s5_repaint.json",
+  "arms": {
+    "sliced": {
+      "graph": {
+        "ps_video": {
+          "class_type": "LoadVideo",
+          "inputs": {
+            "file": "ps-smoke/s5_source.mp4"
+          }
+        },
+        "ps_parts": {
+          "class_type": "GetVideoComponents",
+          "inputs": {
+            "video": [
+              "ps_video",
+              0
+            ]
+          }
+        },
+        "1672": {
+          "inputs": {
+            "videos.video1": [
+              "ps_parts",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

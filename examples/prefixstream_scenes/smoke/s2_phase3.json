@@ -1,0 +1,18 @@
+{
+  "scene": "examples/prefixstream_scenes/s2_walk_talk.json",
+  "arms": {
+    "base": {},
+    "feather4": {
+      "timeline": {
+        "audio_feather": 4
+      }
+    },
+    "airlock": {
+      "boxes": {
+        "corner": {
+          "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. Medium tracking shot following him. The same street, framing and camera move; for the first two seconds he keeps walking toward camera exactly as before, then he turns left at the corner of a bakery and the camera follows him round the corner. The man (S1), a man in his forties with short grey hair, a navy jacket and a phone held to his ear, talking on the phone in a relaxed voice, says: <d>[English] I can see the bakery now. Wait for me outside.</d>\n\noverall_soundscape: His voice, footsteps on stone, market chatter and a distant scooter.\n\nnon_diegetic_music: N/A"
+        }
+      }
+    }
+  }
+}

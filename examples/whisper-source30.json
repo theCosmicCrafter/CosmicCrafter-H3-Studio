@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "name": "type-study-7f2c9a31",
+  "settings": {
+    "width": 1344,
+    "height": 768,
+    "context_frames": 39,
+    "carry_audio": true,
+    "ref_image_size": "match"
+  },
+  "timeline": {
+    "version": 1,
+    "prompt": "",
+    "boxes": [
+      {
+        "id": "opening",
+        "frames": 96,
+        "prompt": "subject_definitions: <Subject 1> is the graphic design palette and geometry in @image9. <Audio 1> is the rhythm reference in @audio1.\nsummary: Ivory lines drift across charcoal.\nretention_analysis: <Subject 1> transfers the palette and geometric vocabulary into animated lettering. <Audio 1> guides rhythm.\ndetailed_description: [Shot 1] Ivory lines drift across charcoal. The camera holds a clear frontal composition with generous negative space.\noverall_soundscape: Restrained paper movement sounds.\nnon_diegetic_music: Rhythm follows @audio1."
+      },
+      {
+        "id": "continue",
+        "frames": 96,
+        "prompt": "subject_definitions: <Subject 1> is the graphic design palette and geometry in @image9. <Audio 1> is the rhythm reference in @audio1.\nsummary: Continue the drifting lines from their reached positions.\nretention_analysis: <Subject 1> transfers the palette and geometric vocabulary into animated lettering. <Audio 1> guides rhythm.\ndetailed_description: [Shot 1] Continue the drifting lines from their reached positions. The camera holds a clear frontal composition with generous negative space.\noverall_soundscape: Restrained paper movement sounds.\nnon_diegetic_music: Rhythm follows @audio1."
+      },
+      {
+        "id": "cut",
+        "frames": 96,
+        "cut": true,
+        "new_scene": true,
+        "prompt": "subject_definitions: <Subject 1> is the graphic design palette and geometry in @image9. <Audio 1> is the rhythm reference in @audio1.\nsummary: A hard cut reveals an ivory field; charcoal circles expand slowly.\nretention_analysis: <Subject 1> transfers the palette and geometric vocabulary into animated lettering. <Audio 1> guides rhythm.\ndetailed_description: [Shot 1] A hard cut reveals an ivory field; charcoal circles expand slowly. The camera holds a clear frontal composition with generous negative space.\noverall_soundscape: Restrained paper movement sounds.\nnon_diegetic_music: Rhythm follows @audio1."
+      }
+    ],
+    "audio_clips": [
+      {
+        "slot": "audio1",
+        "start": 0,
+        "source_start": 30,
+        "duration": 12,
+        "description": "Rhythm reference",
+        "layer": "music"
+      }
+    ],
+    "timed_text": {
+      "version": 1,
+      "source_name": "whisper.json",
+      "source_sha256": "f5db6a4de4eea1734cd6d8104416240a2af687868ade21824848d12412cc58f1",
+      "enabled": true,
+      "sync_audio": true,
+      "audio_slot": "audio1",
+      "start": 0,
+      "source_start": 30,
+      "duration": 12,
+      "direction": "Large ivory lettering remains readable against charcoal, softly appears at each onset and clears at its end; preserve exact punctuation.",
+      "cues": [
+        {
+          "id": "cue1",
+          "start": 30,
+          "end": 32,
+          "text": "Hold the light."
+        },
+        {
+          "id": "cue2",
+          "start": 33.5,
+          "end": 34.5,
+          "text": "Keep walking."
+        }
+      ],
+      "words": [
+        {
+          "id": "word1",
+          "start": 30,
+          "end": 30.5,
+          "text": "Hold"
+        },
+        {
+          "id": "word2",
+          "start": 30.5,
+          "end": 31,
+          "text": " the"
+        },
+        {
+          "id": "word3",
+          "start": 31,
+          "end": 32,
+          "text": " light."
+        },
+        {
+          "id": "word4",
+          "start": 33.5,
+          "end": 34,
+          "text": "Keep"
+        },
+        {
+          "id": "word5",
+          "start": 34,
+          "end": 34.5,
+          "text": " walking."
+        }
+      ]
+    },
+    "consumer": {
+      "whisper_source_json": "{\"segments\":[{\"start\":30,\"end\":32,\"text\":\"Hold the light.\",\"words\":[{\"start\":30,\"end\":30.5,\"word\":\"Hold\"},{\"start\":30.5,\"end\":31,\"word\":\" the\"},{\"start\":31,\"end\":32,\"word\":\" light.\"}]},{\"start\":33.5,\"end\":34.5,\"text\":\"Keep walking.\",\"words\":[{\"start\":33.5,\"end\":34,\"word\":\"Keep\"},{\"start\":34,\"end\":34.5,\"word\":\" walking.\"}]}]}"
+    }
+  },
+  "workflow": {
+    "timeline_node": "20",
+    "api": {
+      "20": {
+        "class_type": "H3C_Timeline",
+        "inputs": {
+          "images.image9": [
+            "32",
+            0
+          ],
+          "audios.audio1": [
+            "40",
+            0
+          ]
+        }
+      },
+      "31": {
+        "class_type": "EmptyImage",
+        "inputs": {
+          "width": 1344,
+          "height": 768,
+          "batch_size": 1,
+          "color": 2236962
+        }
+      },
+      "32": {
+        "class_type": "ImageScale",
+        "inputs": {
+          "image": [
+            "31",
+            0
+          ],
+          "upscale_method": "bicubic",
+          "width": 1344,
+          "height": 768,
+          "crop": "disabled"
+        }
+      },
+      "40": {
+        "class_type": "LoadAudio",
+        "inputs": {
+          "audio": "reference.wav [input]"
+        }
+      }
+    }
+  },
+  "assets": []
+}

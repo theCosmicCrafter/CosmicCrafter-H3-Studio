@@ -1,0 +1,107 @@
+{
+  "name": "H3 Continuity memory demo",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": false,
+    "context_frames": 39,
+    "height": 576,
+    "ref_image_size": "match",
+    "width": 1024
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "frames": 141,
+        "id": "room",
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, warm late-afternoon sunlight. A wide shot shows a cozy, richly detailed living room with an emerald-green velvet sofa with two mustard-yellow cushions, a ginger cat curled asleep on the sofa's left cushion, a low walnut coffee table holding a stack of books and a white ceramic teapot, a red-and-navy Persian rug, a white brick fireplace with a large round brass sunburst mirror above it, a tall fiddle-leaf fig in a terracotta pot beside tall windows with sheer white curtains, a walnut bookcase packed with colorful books, a vintage orange record player on a sideboard, and a white-painted wooden front door with a round brass knob. A woman in her early thirties with short curly auburn hair, wearing a mustard knit cardigan over a white T-shirt, dark blue jeans and white sneakers sits on the sofa beside the sleeping cat, reading a paperback. The camera dollies right with small amplitude at slow speed, revealing the room. She closes the book, sets it on the coffee table, stands up and walks across the rug to the front door. She turns the brass knob and opens the door, and bright golden daylight spills across the wooden floorboards.\n\noverall_soundscape: Quiet room tone with a softly ticking wall clock, the light thud of the book on wood, footsteps on the floorboards and the click of the door latch.\n\nnon_diegetic_music: N/A",
+        "seed": 73101
+      },
+      {
+        "cut": true,
+        "frames": 124,
+        "id": "porch",
+        "memory": "scene",
+        "new_scene": true,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, golden-hour daylight. A wide exterior shot shows the front of a two-story pale-blue clapboard house with white window trim, a covered front porch with white railings, a wooden porch swing, pots of purple lavender beside the porch steps and a red maple tree with orange leaves in the front yard. The white front door opens and the same woman, a woman in her early thirties with short curly auburn hair, wearing a mustard knit cardigan over a white T-shirt, dark blue jeans and white sneakers, steps out onto the porch. The camera pushes in with small amplitude at slow speed. She bends down and picks up a small brown cardboard parcel from the doormat, glances down the quiet tree-lined street, then turns around and pulls the front door open to go back inside.\n\noverall_soundscape: Birds chirp and leaves rustle in a light breeze. Her sneakers tap on the wooden porch boards, the cardboard parcel scuffs as she lifts it, and the door hinge creaks.\n\nnon_diegetic_music: N/A",
+        "seed": 73102
+      },
+      {
+        "cut": true,
+        "frames": 107,
+        "id": "door",
+        "memories": [
+          {
+            "box": "room",
+            "frame": 68,
+            "label": "the woman walking, full view of her clothes"
+          },
+          {
+            "box": "room",
+            "frame": 119,
+            "label": "the woman at the front door"
+          }
+        ],
+        "memory": "selected",
+        "prompt": "subject_definitions:\n<Subject 1> is the woman in <Video 1> and <Video 2>, with short curly auburn hair, a mustard knit cardigan over a white T-shirt, dark blue jeans and white sneakers, holding a small brown cardboard parcel.\n<Subject 2> is the front porch of the pale-blue clapboard house in <Video 1>, with white railings, a white front door with glass sidelights and a brass knob, a wooden porch swing, pots of purple lavender and the red maple tree in the yard.\n\nsummary:\n[reference generation] On the porch of <Subject 2>, <Subject 1> reads the label on the parcel, smiles, then opens the front door and goes inside.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her curly auburn hair, mustard cardigan, white T-shirt, jeans, white sneakers and the brown parcel are retained.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the pale-blue siding, white railings, white front door, lavender pots and golden-hour light are retained.\n\ndetailed_description:\nThe target video is live-action and cinematic, with warm golden-hour light.\n[Shot 1] A medium shot from the side of the porch frames <Subject 1> at the white front door of <Subject 2>, with purple lavender pots and the white railing in the foreground and the red maple glowing behind her. The camera trucks left with small amplitude at slow speed. She turns the parcel over, reads its label and smiles, then turns the brass knob, opens the door and steps inside.\n\noverall_soundscape:\nBirds chirp and leaves rustle in a light breeze. Cardboard scuffs in her hands, then the door latch clicks and the hinge creaks.\n\nnon_diegetic_music:\nN/A",
+        "seed": 73204
+      },
+      {
+        "cut": true,
+        "frames": 141,
+        "id": "return",
+        "memories": [
+          {
+            "box": "room",
+            "frame": 17,
+            "label": "the living room, wide view"
+          },
+          {
+            "box": "room",
+            "frame": 119,
+            "label": "the living room by the front door"
+          }
+        ],
+        "memory": "selected",
+        "prompt": "subject_definitions:\n<Subject 1> is the woman in <Video 1>, with short curly auburn hair, a mustard knit cardigan over a white T-shirt, dark blue jeans and white sneakers, carrying a small brown cardboard parcel.\n<Subject 2> is the living room in <Video 2> and <Video 3>, with an emerald-green velvet sofa with two mustard-yellow cushions, the ginger cat asleep on the sofa's left cushion, the walnut coffee table with the paperback, a stack of books and a white ceramic teapot, a red-and-navy Persian rug, a white brick fireplace with a large round brass sunburst mirror above it, a tall fiddle-leaf fig in a terracotta pot beside tall windows with sheer white curtains, a walnut bookcase packed with colorful books, a vintage orange record player on a sideboard, and a white-painted wooden front door with a round brass knob.\n\nsummary:\n[reference generation] <Subject 1> comes back in from the porch through the front door of <Subject 2>, crosses the room and sits down on the sofa beside the sleeping cat with the parcel.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her curly auburn hair, mustard cardigan, white T-shirt, jeans, sneakers and the brown parcel are retained.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the furniture, objects, colors, layout and warm window light of the living room are retained exactly; the house exterior does not appear.\n\ndetailed_description:\nThe target video is live-action and cinematic, with warm late-afternoon sunlight.\n[Shot 1] A wide interior shot inside <Subject 2> faces the white front door. The door swings open and <Subject 1> steps in from the bright porch holding the brown parcel, closes the door behind her and walks across the Persian rug past the fireplace and the sunburst mirror. The camera pans left with small amplitude at slow speed to follow her. She sits down on the emerald velvet sofa beside the sleeping ginger cat, sets the parcel on the coffee table next to the paperback and gently strokes the cat, which keeps sleeping.\n\noverall_soundscape:\nThe door latch clicks, footsteps cross the floorboards, the sofa cushions creak softly and a wall clock ticks in the quiet room.\n\nnon_diegetic_music:\nN/A",
+        "seed": 73103
+      },
+      {
+        "cut": true,
+        "frames": 124,
+        "id": "angle",
+        "memories": [
+          {
+            "box": "room",
+            "frame": 17,
+            "label": "the living room, wide view"
+          },
+          {
+            "box": "room",
+            "frame": 68,
+            "label": "the sofa, coffee table and fireplace"
+          }
+        ],
+        "memory": "selected",
+        "prompt": "subject_definitions:\n<Subject 1> is the woman in <Video 1>, with short curly auburn hair, a mustard knit cardigan over a white T-shirt, dark blue jeans and white sneakers.\n<Subject 2> is the living room in <Video 1>, <Video 2> and <Video 3>, with an emerald-green velvet sofa with two mustard-yellow cushions, a ginger cat curled asleep on the sofa's left cushion, a low walnut coffee table holding a stack of books and a white ceramic teapot, a red-and-navy Persian rug, a white brick fireplace with a large round brass sunburst mirror above it, a tall fiddle-leaf fig in a terracotta pot beside tall windows with sheer white curtains, a walnut bookcase packed with colorful books, a vintage orange record player on a sideboard, and a white-painted wooden front door with a round brass knob.\n\nsummary:\n[reference generation] A new camera angle inside <Subject 2>: seen from the front-right corner of the room, <Subject 1> sits on the sofa stroking the sleeping cat beside her, then picks up the top book from the stack on the coffee table and opens it.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1]): fully_preserved - her curly auburn hair, mustard cardigan, white T-shirt, jeans and white sneakers are retained.\n<Subject 2> (appears in [Shot 1]): fully_preserved - the same furniture, objects, colors and layout of the living room are retained, seen from a different camera position; the front door stays closed.\n\ndetailed_description:\nThe target video is live-action and cinematic, with warm late-afternoon sunlight.\n[Shot 1] A three-quarter medium-wide shot from the front-right corner of <Subject 2>, near the walnut bookcase, looking diagonally across the room toward the tall windows. In the foreground is the walnut coffee table with the white ceramic teapot, the stack of books and the closed brown parcel resting on the table. Behind it <Subject 1> sits on the emerald-green velvet sofa with its two mustard-yellow cushions. From the very first frame the ginger cat is curled asleep on the sofa right against her left side, and her hand rests on its back. The white brick fireplace and the round brass sunburst mirror are seen at an angle on the back wall, and a single fiddle-leaf fig in its terracotta pot stands by the sheer white curtains; there is no other plant. The camera pushes in with small amplitude at slow speed. She strokes the cat once more, then picks up the top book from the stack, leans back into the cushions and opens it, while the cat keeps sleeping beside her and the parcel stays on the table.\n\noverall_soundscape:\nQuiet room tone with a softly ticking wall clock, cardboard sliding on wood, the soft creak of the sofa cushions and pages rustling.\n\nnon_diegetic_music:\nN/A",
+        "seed": 73417
+      },
+      {
+        "frames": 102,
+        "id": "read",
+        "memory": "off",
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, warm late-afternoon sunlight. The same three-quarter view of the living room continues without any cut. The woman with short curly auburn hair, in a mustard knit cardigan over a white T-shirt and dark blue jeans, sits back on the emerald-green velvet sofa reading the open book. She turns a page, then glances down at the ginger cat asleep against her side and smiles; the cat stretches one front paw and settles back to sleep. The camera remains static. The walnut coffee table with the white teapot, the stack of books and the brown parcel stays in the foreground, and the sunburst mirror and white brick fireplace stay on the back wall.\n\noverall_soundscape: A page turns with a soft paper rustle, the cat gives a small sleepy chirp, and a wall clock ticks in the quiet room.\n\nnon_diegetic_music: N/A",
+        "seed": 73418
+      }
+    ],
+    "bridges": [
+      {
+        "before": "door",
+        "frames": 46,
+        "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic, golden-hour light. One continuous shot, no cut: the camera rushes forward toward the porch of the pale-blue house, then whip-pans fast to the left in a streak of motion blur of white railing, red maple leaves and lavender, and settles smoothly on a medium side view of the woman in the mustard cardigan, white top and dark jeans at the white front door, holding a brown parcel.\noverall_soundscape: Birdsong, a soft whoosh of air during the fast camera pan, leaves rustling.\nnon_diegetic_music: None.",
+        "seed": 73312
+      }
+    ]
+  },
+  "assets": []
+}

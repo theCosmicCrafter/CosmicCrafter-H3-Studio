@@ -1,0 +1,6 @@
+{
+  "scene": "examples/prefixstream_scenes/s3_landing.json",
+  "arms": {
+    "base": {}
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "scene": "examples/prefixstream_scenes/s1_talking_chain.json",
+  "arms": {
+    "base": {},
+    "antiburn05": {
+      "graph": {
+        "ps_lora": {
+          "class_type": "LoraLoaderModelOnly",
+          "inputs": {
+            "model": [
+              "1409",
+              0
+            ],
+            "lora_name": "h3_antiburn_universal_v1.safetensors",
+            "strength_model": 0.5
+          }
+        },
+        "ps_cm": {
+          "class_type": "H3C_ContinuationModel",
+          "inputs": {
+            "model": [
+              "1409",
+              0
+            ],
+            "segment": [
+              "1672",
+              3
+            ],
+            "continuation_model": [
+              "ps_lora",
+              0
+            ]
+          }
+        },
+        "115": {
+          "inputs": {
+            "model": [
+              "ps_cm",
+              0
+            ]
+          }
+        }
+      }
+    },
+    "noguide": {
+      "timeline": {
+        "continuation_guide": false
+      }
+    },
+    "soft06": {
+      "timeline": {
+        "soft_prefix": 0.06
+      }
+    },
+    "tail05": {
+      "graph": {
+        "ps_tail": {
+          "class_type": "H3C_SigmasTail",
+          "inputs": {
+            "sigmas": [
+              "1071_994",
+              0
+            ],
+            "tail_steps": 3,
+            "strength": 0.5,
+            "segment": [
+              "1672",
+              3
+            ]
+          }
+        },
+        "116": {
+          "inputs": {
+            "sigmas": [
+              "ps_tail",
+              0
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "name": "example-semantic-reference",
+  "timeline": {
+    "version": 1,
+    "prompt": "Soft evening light.",
+    "boxes": [
+      {
+        "id": "opening",
+        "frames": 192,
+        "prompt": ""
+      }
+    ],
+    "consumer": {
+      "brief": "Any consumer, any creative brief"
+    }
+  },
+  "settings": {},
+  "workflow": {
+    "timeline_node": "20",
+    "api": {
+      "20": {
+        "class_type": "H3C_Timeline",
+        "inputs": {
+          "name": "template",
+          "width": 1344,
+          "height": 768,
+          "context_frames": "39",
+          "carry_audio": true,
+          "ref_image_size": "match",
+          "timeline": "{}",
+          "images.image2": [
+            "31",
+            0
+          ],
+          "images.image9": [
+            "32",
+            0
+          ]
+        }
+      },
+      "31": {
+        "class_type": "EmptyImage",
+        "inputs": {
+          "width": 64,
+          "height": 64,
+          "batch_size": 1,
+          "color": 0
+        }
+      },
+      "32": {
+        "class_type": "EmptyImage",
+        "inputs": {
+          "width": 64,
+          "height": 64,
+          "batch_size": 1,
+          "color": 0
+        }
+      }
+    }
+  },
+  "assets": [],
+  "semantic_boxes": {
+    "opening": {
+      "version": 1,
+      "references": [
+        "image9",
+        "image2"
+      ],
+      "prompt": {
+        "style": "Live-action cinematic",
+        "speakers": [],
+        "shots": [
+          {
+            "number": 1,
+            "start_ms": 0,
+            "composition": "A medium shot inside the carriage",
+            "actions": [
+              "The woman stands."
+            ],
+            "references": [
+              {
+                "target": "subject_1",
+                "detail": "stands beside the door"
+              },
+              {
+                "target": "image2",
+                "detail": "provides the shot composition"
+              }
+            ],
+            "camera": {
+              "type": "Push In",
+              "amplitude": "small",
+              "speed": "slow"
+            },
+            "dialogue": [],
+            "diegetic_audio": [
+              "Train wheels rumble"
+            ]
+          }
+        ],
+        "overall_soundscape": "A low ventilation hum continues.",
+        "non_diegetic_music": "N/A",
+        "summary": "The woman stands in the train.",
+        "retention": [
+          {
+            "target": "subject_1",
+            "relationship": "fully_preserved",
+            "detail": "Her clothing remains unchanged"
+          },
+          {
+            "target": "image2",
+            "relationship": "partially_preserved",
+            "detail": "The carriage layout remains"
+          }
+        ],
+        "soundscape_references": [],
+        "music_references": []
+      },
+      "analysis": {
+        "subjects": [
+          {
+            "id": "subject_1",
+            "definition": "the woman with a red jacket",
+            "sources": [
+              {
+                "reference": "image9",
+                "role": "appearance"
+              }
+            ]
+          }
+        ],
+        "picture_anchors": [
+          {
+            "reference": "image2",
+            "role": "composition",
+            "definition": "the carriage layout"
+          }
+        ],
+        "audio_roles": [],
+        "video_roles": []
+      }
+    }
+  }
+}

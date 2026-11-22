@@ -1,0 +1,60 @@
+{
+  "name": "PrefixStream S5: repaint the S1 render as watercolor, each box following its own slice of @video1",
+  "settings": {
+    "audio_context_frames": 0,
+    "carry_audio": true,
+    "context_frames": 39,
+    "height": 544,
+    "ref_image_size": "match",
+    "width": 960
+  },
+  "timeline": {
+    "version": 1,
+    "boxes": [
+      {
+        "id": "talk1",
+        "frames": 124,
+        "seed": 51001,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. A sunlit kitchen in the morning; she stands behind a wooden counter with a bowl of lemons, window light from the left. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] Good morning. Today I want to show you how I make my grandmother's lemon cake.</d> She smiles and rests her hands on the counter.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A"
+      },
+      {
+        "id": "talk2",
+        "frames": 124,
+        "seed": 51002,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. The same kitchen and framing; she keeps talking to camera. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] It only needs five things, and you probably have most of them already.</d> She counts on her fingers.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      },
+      {
+        "id": "talk3",
+        "frames": 124,
+        "seed": 51003,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. The same kitchen and framing; she keeps talking to camera. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] First, the lemons. They should feel heavy for their size.</d> She picks up a lemon and turns it in her hand.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      },
+      {
+        "id": "talk4",
+        "frames": 124,
+        "seed": 51004,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. The same kitchen and framing; she keeps talking to camera. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] Then butter, sugar and eggs, all at room temperature.</d> She puts the lemon down and gestures to the side.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      },
+      {
+        "id": "talk5",
+        "frames": 124,
+        "seed": 51005,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. The same kitchen and framing; she keeps talking to camera. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] The secret is patience. Don't rush the butter and sugar.</d> She shakes her head slightly and laughs.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      },
+      {
+        "id": "talk6",
+        "frames": 124,
+        "seed": 51006,
+        "prompt": "integrated_multimodal_description: [Shot 1] Hand-drawn 2D animation in soft watercolor, following the framing, camera, motion and timing of @video1 exactly. Medium close-up, static camera. The same kitchen and framing; she keeps talking to camera. The woman (S1), a woman in her thirties with shoulder-length dark hair, a green knit sweater and small gold earrings, speaking warmly to camera in a calm, conversational tone, says: <d>[English] Let's start. I'll see you at the mixing bowl.</d> She nods and gives a small wave.\n\noverall_soundscape: Her clear voice close to the microphone, soft kitchen room tone, a faint clock ticking.\n\nnon_diegetic_music: N/A",
+        "memory": "off"
+      }
+    ],
+    "video_slices": [
+      "video1"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "scene": "examples/prefixstream_scenes/s4_fork.json",
+  "arms": {
+    "corner": {},
+    "stall": {
+      "boxes": {
+        "corner": {
+          "seed": 54002,
+          "prompt": "integrated_multimodal_description: [Shot 1] Live-action, cinematic. Medium tracking shot following him. The same street; he slows down and stops at a fruit stall, still on the phone, and picks up an orange. The man (S1), a man in his forties with short grey hair, a navy jacket and a phone held to his ear, talking on the phone in a relaxed voice, says: <d>[English] Actually, I'll grab some oranges first. Two minutes.</d>\n\noverall_soundscape: His voice, footsteps on stone, market chatter and a distant scooter.\n\nnon_diegetic_music: N/A"
+        }
+      }
+    }
+  }
+}

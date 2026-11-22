@@ -1,0 +1,7 @@
+# H3 Continuity authoring layer (vendored, MIT — see VENDORED.md)
+jsonschema>=4,<5
+PyYAML>=6,<7
+
+# Optional: mcp_adapter/ is a standalone package — install separately with
+#   pip install -e mcp_adapter/
+# to get the h3c-mcp CLI (deps: mcp, httpx2, pydantic, anyio).
