@@ -29,3 +29,16 @@ Attribution carried over from upstream THIRD_PARTY_NOTICES.md:
 ## This pack
 
 CosmicCrafter-H3-Studio runtime code is GPL-3.0-only (see LICENSE).
+
+## Absorbed nodes
+
+- `h3_facefix.py` (`PixelAIH3FaceSizeFade`) is a faithful port of the node
+  from ComfyUI-H3-FaceFix-PixelAILabs
+  (https://github.com/Pixelailabs/ComfyUI-H3-FaceFix-PixelAILabs), MIT
+  License, copyright (c) 2026 PixelAI Labs. Node id, behaviour and the
+  example workflow (`examples/PixelAI_H3_FaceFix.json`) are kept identical
+  so upstream workflows resolve unchanged. The workflow itself depends on
+  third-party packs that are NOT vendored: ComfyUI-H3-FaceRefine
+  (Carasibana), MaskVidExperiments (drozbay), ComfyUI-VOSR2 (ylchen333),
+  ComfyUI-KJNodes (kijai), ComfyUI-VideoHelperSuite (Kosinkadink) and
+  ComfyUI-Impact-Subpack (ltdrdata); each carries its own licence.

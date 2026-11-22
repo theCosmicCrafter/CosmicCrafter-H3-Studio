@@ -94,6 +94,7 @@ from .cosmic_h3_vram import (
     CosmicH3OptimalBucketSelector,
 )
 from .h3_frame_calc import MiniMaxH3FrameCalculator
+from .h3_facefix import PixelAIH3FaceSizeFade
 
 try:
     import torchaudio
@@ -1949,6 +1950,7 @@ NODE_CLASS_MAPPINGS = {
     "CosmicH3DynamicTilingDecoder": CosmicH3DynamicTilingDecoder,
     "CosmicH3OptimalBucketSelector": CosmicH3OptimalBucketSelector,
     "MiniMaxH3FrameCalculator": MiniMaxH3FrameCalculator,
+    "PixelAIH3FaceSizeFade": PixelAIH3FaceSizeFade,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2012,5 +2014,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicH3DynamicTilingDecoder": "Cosmic H3 Dynamic Tiling Decoder",
     "CosmicH3OptimalBucketSelector": "Cosmic H3 Optimal Bucket Selector",
     "MiniMaxH3FrameCalculator": "H3 Frame Calculator",
+    "PixelAIH3FaceSizeFade": "H3 Face Size Fade (PixelAI Labs)",
 }
 
