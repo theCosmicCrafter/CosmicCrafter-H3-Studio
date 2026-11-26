@@ -50,7 +50,7 @@ forensics = _sibling("forensics")
 _MAX_SIDE = 1024
 FOCUS_EVENT_CHAIN = "event chain (timestamped)"
 
-_MODEL_BAD = ("", "[offline]", "[empty]", "[no models", "[connection", "querying")
+_MODEL_BAD = ("[offline]", "[empty]", "[no models", "[connection", "querying")
 
 
 def _clean_model_name(model) -> str:
@@ -379,7 +379,19 @@ class CosmicH3VideoForensics:
 def _generate_vision(provider, model, system, user, images_b64, endpoint, api_key):
     """Vision calls differ enough between vendors to be worth their own branch."""
     base = (endpoint or providers.DEFAULT_ENDPOINTS.get(provider, "")).rstrip("/")
-    if provider in ("ollama", "lmstudio", "openai"):
+    if provider == "ollama":
+        # Ollama's OpenAI-compat /v1/chat/completions rejects multimodal payloads
+        # for some builds; its native /api/chat handles images fine.
+        data = providers._post(f"{base}/api/chat", {
+            "model": model,
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": user,
+                          "images": list(images_b64)}],
+            "stream": False,
+            "options": {"num_predict": 1024},
+        }, {})
+        return data["message"]["content"]
+    if provider in ("lmstudio", "openai"):
         content = [{"type": "text", "text": user}] + [
             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b}"}}
             for b in images_b64]

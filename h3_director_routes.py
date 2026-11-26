@@ -17,12 +17,37 @@ _LOG = logging.getLogger("h3_motion_context.director_routes")
 #: Sub-directory of ComfyUI's input dir that the Director owns.
 MEDIA_SUBDIR = "cosmiccrafter"
 
-AUDIO_EXTENSIONS = (".wav", ".mp3", ".ogg", ".flac", ".m4a")
+AUDIO_EXTENSIONS = (".wav", ".mp3", ".ogg", ".flac", ".m4a", ".aac", ".opus")
+UPLOAD_EXTENSIONS = AUDIO_EXTENSIONS + (
+    ".mp4", ".webm", ".mov", ".mkv", ".avi",
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp",
+)
 
 #: Number of peak buckets returned to the timeline waveform renderer.
 WAVEFORM_PEAKS = 200
 
 _REGISTERED = False
+
+
+def sanitize_upload_filename(filename):
+    """Sanitize a browser-supplied upload filename across Windows, macOS, and Linux.
+
+    Strips both ``/`` and ``\\`` path components, rejects null bytes and hidden/traversal
+    names, and restricts uploads to known media extensions (:data:`UPLOAD_EXTENSIONS`).
+    Returns ``None`` if the filename is unsafe or has a disallowed extension.
+    """
+    if not filename or not isinstance(filename, str):
+        return None
+    if "\x00" in filename:
+        return None
+    normalized = filename.replace("\\", "/")
+    safe_name = os.path.basename(normalized).strip()
+    if not safe_name or safe_name in (".", "..") or safe_name.startswith("."):
+        return None
+    ext = os.path.splitext(safe_name)[1].lower()
+    if ext not in UPLOAD_EXTENSIONS:
+        return None
+    return safe_name
 
 
 def media_root(folder_paths):
@@ -40,12 +65,14 @@ def resolve_media_path(folder_paths, filename, extra_roots=()):
     directory while writes stay confined to the Director's own sub-directory.
     """
 
-    if not filename:
+    if not filename or "\x00" in str(filename):
         return None
 
     # Reject absolute paths and drive-relative names outright; only the
     # traversal-free remainder is ever joined to a root.
     if os.path.isabs(filename) or os.path.splitdrive(filename)[0]:
+        return None
+    if str(filename).startswith(("/", "\\")):
         return None
 
     roots = [media_root(folder_paths)]
@@ -174,10 +201,10 @@ def register_routes():
             return web.json_response({"error": "chunk index out of range"}, status=400)
 
         # Writes are confined to the Director's media dir: keep only the base
-        # name so "../" segments cannot walk out of it.
-        safe_name = os.path.basename(str(filename))
-        if not safe_name or safe_name in (".", ".."):
-            return web.json_response({"error": "Invalid filename"}, status=400)
+        # name and allowlisted media extensions so "../" segments or scripts cannot be written.
+        safe_name = sanitize_upload_filename(str(filename))
+        if not safe_name:
+            return web.json_response({"error": "Invalid or unsupported media filename"}, status=400)
 
         root = media_root(folder_paths)
         file_path = os.path.join(root, safe_name)

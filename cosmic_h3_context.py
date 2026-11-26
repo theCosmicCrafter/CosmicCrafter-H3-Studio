@@ -24,6 +24,28 @@ except ImportError:
     context_windows = None
     HAS_COMFY_CONTEXT = False
 
+
+def _pixel_to_latent_frames(pixel_frames: int, channels: int = 4) -> int:
+    """Convert pixel frame count to latent frame count.
+    Uses MiniMax H3 (1,4,4,4,4) per 17-frame clip when channels == 24 or pixel_frames sits on 17k+5 (and not 4k+1);
+    otherwise uses standard 4k+1.
+    """
+    if pixel_frames <= 1:
+        return 1
+    on_17k5 = pixel_frames >= 5 and (pixel_frames - 5) % 17 == 0
+    on_4k1 = (pixel_frames - 1) % 4 == 0
+    if channels == 24 or (on_17k5 and not on_4k1):
+        clips, rem = divmod(int(pixel_frames), 17)
+        if rem == 0:
+            tail = 0
+        elif rem == 1:
+            tail = 1
+        else:
+            tail = 1 + (rem - 1 + 3) // 4
+        return max(1, clips * 5 + tail)
+    return max(1, (int(pixel_frames) - 1) // 4 + 1)
+
+
 class CosmicH3SlidingContextWindow:
     """Smoothly blends latents at seams across overlapping window chunks.
 
@@ -55,7 +77,7 @@ class CosmicH3SlidingContextWindow:
                         "min": 2,
                         "max": 128,
                         "step": 1,
-                        "tooltip": "Window length in latent frames; 16 covers about 61 output frames.",
+                        "tooltip": "Window length in latent frames; 16 covers about 56-61 output frames.",
                     },
                 ),
                 "context_overlap": (
@@ -227,11 +249,11 @@ class CosmicH3AutoregressiveFrameExtender:
                 "overlap_frames": (
                     "INT",
                     {
-                        "default": 4,
+                        "default": 5,
                         "min": 1,
-                        "max": 16,
+                        "max": 39,
                         "step": 1,
-                        "tooltip": "How many tail frames to freeze as the prefix. 4 is enough; more repeats more of the old clip.",
+                        "tooltip": "How many tail frames to freeze as the prefix. 5 (one H3 tail) or 4 is standard.",
                     },
                 ),
                 "noise_aug": (
@@ -247,11 +269,11 @@ class CosmicH3AutoregressiveFrameExtender:
                 "latent_length": (
                     "INT",
                     {
-                        "default": 17,
-                        "min": 5,
+                        "default": 37,
+                        "min": 2,
                         "max": 257,
-                        "step": 4,
-                        "tooltip": "Latent frames in the next clip. Ignored whenever total_frames is non-zero.",
+                        "step": 1,
+                        "tooltip": "Latent frames in the next clip (37 = 124 pixel frames in H3). Ignored whenever total_frames is non-zero.",
                     },
                 ),
             },
@@ -261,9 +283,9 @@ class CosmicH3AutoregressiveFrameExtender:
                     {
                         "default": 0,
                         "min": 0,
-                        "max": 321,
+                        "max": 515,
                         "step": 1,
-                        "tooltip": "Next clip length in output frames (4k+1); 0 uses latent_length instead.",
+                        "tooltip": "Next clip length in output frames (17k+5 or 4k+1); 0 uses latent_length instead.",
                     },
                 ),
             },
@@ -307,7 +329,7 @@ class CosmicH3AutoregressiveFrameExtender:
                     if tensor_vals:
                         prefix_latent = tensor_vals[0]
                     else:
-                        t_lat = (actual_overlap - 1) // 4 + 1 if actual_overlap > 1 else 1
+                        t_lat = _pixel_to_latent_frames(actual_overlap)
                         h_lat, w_lat = max(1, ref_images.shape[1] // 8), max(1, ref_images.shape[2] // 8)
                         prefix_latent = torch.zeros(
                             (1, 4, t_lat, h_lat, w_lat),
@@ -317,7 +339,7 @@ class CosmicH3AutoregressiveFrameExtender:
             else:
                 prefix_latent = encoded
         else:
-            t_lat = (actual_overlap - 1) // 4 + 1 if actual_overlap > 1 else 1
+            t_lat = _pixel_to_latent_frames(actual_overlap)
             h_lat, w_lat = max(1, ref_images.shape[1] // 8), max(1, ref_images.shape[2] // 8)
             prefix_latent = torch.zeros(
                 (1, 4, t_lat, h_lat, w_lat),
@@ -332,7 +354,7 @@ class CosmicH3AutoregressiveFrameExtender:
 
         # Use total_frames if passed
         if total_frames is not None and total_frames > 0:
-            latent_length = (total_frames - 1) // 4 + 1
+            latent_length = _pixel_to_latent_frames(total_frames, channels=c_lat)
 
         # Allocate full target latent initialized with normal noise
         gen_lat = torch.randn(

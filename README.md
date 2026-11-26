@@ -107,9 +107,42 @@ Measured on a 124-frame clip carrying 11 single-frame beats (37 latent frames):
 * Eliminates out-of-memory (OOM) crashes by streaming decoded clips directly into `VHS_VideoCombine` one chunk at a time.
 * Linear pixel ramp blending across overlapping clip seams ($N_{\text{overlap}} = 39$).
 
+### 6. 🛡️ Seam Protection & Audiovisual Harmonization (`CosmicCrafterSeamProtector` & `CosmicCrafterTrimPrefixLatent`)
+* **Luminance Gain Matching**: Computes relative ITU-R BT.709 luminance ($Y = 0.2126 R + 0.7152 G + 0.0722 B$) across boundary midtones ($0.04 < Y < 0.96$) and applies smooth cosine S-curve gain fading to completely eliminate clip-to-clip exposure flicker.
+* **Equal-Power Audio Crossfade**: Combines audio waveforms using an equal-power sinusoidal curve ($\text{fade\_out} = \cos(t), \text{fade\_in} = \sin(t)$) over a configurable millisecond window, preserving total acoustic energy without center volume dips.
+* **Boundary Micro-Fading**: 32-sample cosine micro-fade to eliminate DC offset clicks when truncating or zero-padding waveforms.
+* **Prefix Context Trimming**: Cleanly strips leading overlap frames from both H3 joint AV latents and decoded media without re-encoding passes.
+
 ---
 
-## 📦 Bundled Workflows
+## � Bundled: H3 Continuity Studio (authoring layer)
+
+This pack also vendors **H3 Continuity Studio** (MIT, upstream
+[ComfyUI-H3-Continuity-Studio](https://github.com/KadoBOT/ComfyUI-H3-Continuity-Studio)
+@ `16cc1779`, v1.3.0 — see `VENDORED.md`). It is the authoring half of the H3
+pipeline: where this pack renders, Continuity plans, persists, and directs.
+
+- **19 V3 nodes** (`H3C_*`): box-sequence Timeline with saved takes, Story
+  planner (LLM-driven, ~20 modules), stills pipeline, context windows, disk
+  cache — registered through `comfy_entrypoint` alongside the V1 nodes above.
+- **`/h3c/*` HTTP surface** (~50 routes) plus a durable `/h3c/api/v1` project
+  API (sha256 assets, revisions, job lifecycle, artifacts) for external
+  clients such as desktop apps and agents.
+- **Studio frontend**: the 64-file Continuity editor ships inside `js/` next
+  to this pack's own widgets.
+- **MCP adapter**: `mcp_adapter/` is a standalone package — `pip install -e
+  mcp_adapter/` for the `h3c-mcp` CLI (21 tools) that drives the HTTP surface.
+- **Prompt IR pipeline**: semantic JSON contract → strict schema →
+  deterministic H3-syntax compiler → fail-closed validator
+  (`h3_continuity/h3_prompt_*.py`).
+
+New runtime deps: `jsonschema`, `PyYAML` (see `requirements.txt`). All other
+Continuity dependencies are ComfyUI-provided (`torch`, `PIL`, `safetensors`,
+`folder_paths`, `comfy_api`).
+
+---
+
+## �📦 Bundled Workflows
 
 All example workflows are located in the `example_workflows/` folder:
 
@@ -220,3 +253,8 @@ python tests/run_tests.py
 ## 📜 License
 
 Licensed under GPL-3.0. Built on the open research of MiniMax H3 motion context engines.
+
+The vendored H3 Continuity Studio code (`h3_continuity/`, `mcp_adapter/`,
+`skills/`, `docs/continuity/`, `guide/`, `examples/continuity/`, `tests/h3c/`,
+`tools/h3c/`) is MIT-licensed — see `h3_continuity/LICENSE` and
+`THIRD_PARTY_NOTICES.md`. The pack's own code remains GPL-3.0-only.

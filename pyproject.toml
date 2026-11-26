@@ -1,15 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "cosmiccrafter-h3-studio"
-description = "H3 Studio: MiniMax-H3 motion context, AV masking, long-video extension, prompt toolkit and studio nodes for ComfyUI"
-version = "1.0.0"
+description = "H3 Studio: MiniMax-H3 motion context, AV masking, long-video extension, prefix-stream seam protection, circular looping, VRAM tiling, and prompt toolkit for ComfyUI"
+version = "1.1.0"
+readme = "README.md"
+requires-python = ">=3.10"
 license = { text = "GPL-3.0-only" }
-dependencies = []
+keywords = [
+    "comfyui",
+    "minimax-h3",
+    "video-generation",
+    "audio-video",
+    "long-video",
+    "looping",
+    "vram-tiling",
+    "cosmic-crafter",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "jsonschema>=4,<5",
+    "PyYAML>=6,<7",
+]
 
 [project.urls]
 Repository = "https://github.com/theCosmicCrafter/CosmicCrafter-H3-Studio"
 Issues = "https://github.com/theCosmicCrafter/CosmicCrafter-H3-Studio/issues"
 
 [tool.comfy]
-PublisherId = ""
-DisplayName = "H3 Studio"
+PublisherId = "thecosmiccrafter"
+DisplayName = "CosmicCrafter H3 Studio"
 Icon = ""

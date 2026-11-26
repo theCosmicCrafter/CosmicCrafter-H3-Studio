@@ -94,11 +94,25 @@ from .cosmic_h3_vram import (
     CosmicH3OptimalBucketSelector,
 )
 from .h3_frame_calc import MiniMaxH3FrameCalculator
+from .cosmic_h3_loop import (
+    MiniMaxH3Loop,
+    MiniMaxH3LoopDecode,
+    MiniMaxH3LoopControlVideo,
+    LoopInterpolate,
+)
+from .cosmic_h3_seam import (
+    MiniMaxH3SeamProtector,
+    MiniMaxH3TrimPrefixLatent,
+)
 from .h3_facefix import PixelAIH3FaceSizeFade
+from .h3_proxy_continuity import (
+    CosmicH3ProxyWorldState,
+    CosmicH3ProxyKeyframes,
+)
 
 try:
     import torchaudio
-except ImportError:
+except (ImportError, OSError):
     torchaudio = None
 
 _LOG = logging.getLogger("h3_motion_context")
@@ -1950,7 +1964,21 @@ NODE_CLASS_MAPPINGS = {
     "CosmicH3DynamicTilingDecoder": CosmicH3DynamicTilingDecoder,
     "CosmicH3OptimalBucketSelector": CosmicH3OptimalBucketSelector,
     "MiniMaxH3FrameCalculator": MiniMaxH3FrameCalculator,
+    "MiniMaxH3Loop": MiniMaxH3Loop,
+    "MiniMaxH3LoopDecode": MiniMaxH3LoopDecode,
+    "MiniMaxH3LoopControlVideo": MiniMaxH3LoopControlVideo,
+    "LoopInterpolate": LoopInterpolate,
+    "CosmicH3Loop": MiniMaxH3Loop,
+    "CosmicH3LoopDecode": MiniMaxH3LoopDecode,
+    "CosmicH3LoopControlVideo": MiniMaxH3LoopControlVideo,
+    "CosmicH3LoopInterpolate": LoopInterpolate,
+    "MiniMaxH3SeamProtector": MiniMaxH3SeamProtector,
+    "CosmicCrafterSeamProtector": MiniMaxH3SeamProtector,
+    "MiniMaxH3TrimPrefixLatent": MiniMaxH3TrimPrefixLatent,
+    "CosmicCrafterTrimPrefixLatent": MiniMaxH3TrimPrefixLatent,
     "PixelAIH3FaceSizeFade": PixelAIH3FaceSizeFade,
+    "CosmicH3ProxyWorldState": CosmicH3ProxyWorldState,
+    "CosmicH3ProxyKeyframes": CosmicH3ProxyKeyframes,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -2014,6 +2042,20 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CosmicH3DynamicTilingDecoder": "Cosmic H3 Dynamic Tiling Decoder",
     "CosmicH3OptimalBucketSelector": "Cosmic H3 Optimal Bucket Selector",
     "MiniMaxH3FrameCalculator": "H3 Frame Calculator",
+    "MiniMaxH3Loop": "MiniMax H3 Loop",
+    "MiniMaxH3LoopDecode": "MiniMax H3 Loop Decode",
+    "MiniMaxH3LoopControlVideo": "MiniMax H3 Loop Control Video",
+    "LoopInterpolate": "Loop Interpolate",
+    "CosmicH3Loop": "Cosmic H3 Loop",
+    "CosmicH3LoopDecode": "Cosmic H3 Loop Decode",
+    "CosmicH3LoopControlVideo": "Cosmic H3 Loop Control Video",
+    "CosmicH3LoopInterpolate": "Cosmic H3 Loop Interpolate",
+    "MiniMaxH3SeamProtector": "H3 Seam Protector & Harmonizer",
+    "CosmicCrafterSeamProtector": "CosmicCrafter Seam Protector",
+    "MiniMaxH3TrimPrefixLatent": "H3 Trim Prefix Latent & Media",
+    "CosmicCrafterTrimPrefixLatent": "CosmicCrafter Trim Prefix Latent",
     "PixelAIH3FaceSizeFade": "H3 Face Size Fade (PixelAI Labs)",
+    "CosmicH3ProxyWorldState": "Cosmic H3 Proxy World State",
+    "CosmicH3ProxyKeyframes": "Cosmic H3 Proxy Keyframes",
 }
 

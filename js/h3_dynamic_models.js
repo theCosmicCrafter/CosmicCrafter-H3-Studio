@@ -1,5 +1,5 @@
-import { app } from "../../../scripts/app.js";
-import { api } from "../../../scripts/api.js";
+import { app } from "../../scripts/app.js";
+import { api } from "../../scripts/api.js";
 
 // Live model dropdowns for the H3 prompt toolkit. The backend declares `model`
 // as a free STRING (blank = auto-pick); this extension swaps that widget for a
@@ -43,7 +43,8 @@ app.registerExtension({
                 const data = await res.json();
                 if (data && data.models && data.models.length > 0) {
                     combo.options.values = data.models;
-                    combo.value = data.models.includes(keep) ? keep : data.models[0];
+                    const strip = s => String(s).replace(/^\[(Vision|LLM|Embed)\]\s*/, "");
+                    combo.value = data.models.find(m => strip(m) === strip(keep)) || data.models[0];
                 } else {
                     combo.options.values = ["[No models available]"];
                     combo.value = "[No models available]";

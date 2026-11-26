@@ -342,3 +342,84 @@ The moved code stays under its MIT authorship inside this GPL-3.0 pack (MIT reli
 - `cosmic_crafter_director.py` deleted: an abandoned LTX Director port that was never imported and could never work (it imports `.prompt_relay`, a module that does not exist). The live Director node and its `/cosmic_crafter_director_*` routes are unaffected.
 - `h3_frame_calc.py` wired in: `MiniMaxH3FrameCalculator` was complete but never imported — now registered (`H3 Studio/Conditioning`) so the 17k+5 frame-grid helper actually ships.
 - `CosmicH3TemporalAttentionSharpening` and `CosmicH3MultiPromptCameraSteering` removed from `cosmic_h3_advanced.py`: unregistered experiments — the camera-steering hook was a passthrough that ignored its own inputs (recoverable via git history if ever wanted).
+
+---
+
+## Update 7 — Seam Protection, Luminance Matching & Audiovisual Harmonization — 2026-11-01
+
+Integrates high-precision seam protection and boundary harmonization algorithms:
+
+### Main changes
+
+- Added `cosmic_h3_seam.py`:
+  - `estimate_luminance_gain`: Computes relative ITU-R BT.709 midtone luminance ratios ($Y = 0.2126 R + 0.7152 G + 0.0722 B$) between boundary frames to eliminate clip-to-clip exposure shifts.
+  - `apply_luminance_gain_fade`: Applies a smooth cosine S-curve gain transition across boundary frames.
+  - `audio_equal_power_crossfade`: Concatenates audio waveforms using equal-power cosine/sine crossfades ($\cos(t) + \sin(t)$) over a configurable millisecond window to prevent energy dips.
+  - `fit_audio_length_with_microfade`: 32-sample cosine micro-fade easing to prevent DC offset clicks when truncating or zero-padding waveforms.
+  - `trim_prefix_latent`: Clock-synchronized context prefix trimming for H3 joint AV latents.
+- Added custom nodes registered under both standard and CosmicCrafter aliases:
+  - `CosmicCrafterSeamProtector` (`MiniMaxH3SeamProtector`): Seamlessly joins two clips with luminance gain matching and equal-power audio crossfading.
+  - `CosmicCrafterTrimPrefixLatent` (`MiniMaxH3TrimPrefixLatent`): Trims leading context prefix from generated latents and media.
+- Fixed mock-environment imports in `cosmic_h3_loop.py` to ensure complete standalone test resilience.
+- Added 10 regression tests in `tests/test_cosmic_seam.py`.
+
+---
+
+## Update 8 — Full-Studio Future-Proofing, Native H3 Geometry & Security Hardening — 2026-11-02
+
+Comprehensive architectural audit and hardening pass across the entire `CosmicCrafter-H3-Studio` pack for worldwide distribution and ComfyUI Registry compliance:
+
+### Main changes
+
+- **Native $17k+5$ & Harmonic $51m+39$ Frame Grids in `CosmicH3OptimalBucketSelector` (`cosmic_h3_vram.py`)**:
+  - Updated `FRAME_BUCKETS` from legacy $4k+1$ (`17, 33, 49, 81...`) to MiniMax H3's causal VAE $17k+5$ buckets (`5, 22, 39, 56, 73, 90, 107, 124 ... 515`) and added an optional `frame_grid_mode` selector supporting `"17k+5 (H3 Native)"`, `"51m+39 (H3 Harmonic AV)"`, and `"4k+1 (Legacy)"`.
+- **Joint AV `NestedTensor` & 24-Channel H3 Latent Support (`cosmic_h3_vram.py`, `cosmic_h3_advanced.py`, `cosmic_h3_context.py`)**:
+  - `CosmicH3DynamicTilingDecoder` now automatically unpacks ComfyUI `NestedTensor` / `[video, audio]` joint H3 latents and supports 24-channel $16\times$ spatial / $(1,4,4,4,4)$ temporal H3 geometry alongside $8\times$ 4/16-channel latents.
+  - `CosmicH3AdaptiveNoiseRecoupling` now unpacks and repacks joint AV `NestedTensor` latents inside `sampler_post_cfg_hook` (fixing a silent no-op on joint AV sampling) and caches the 2D radial FFT mask per `(H, W, highpass, lowpass, device)`.
+  - `CosmicH3OpticalFlowMotionBucket` now deterministically seeds `FlowProjectionLayer`, executes inside `torch.no_grad()`, and automatically resamples pixel-rate `flow_images` to H3 latent token steps when needed.
+  - `CosmicH3AutoregressiveFrameExtender` now computes $(1,4,4,4,4)$ latent steps accurately for 24-channel H3 latents and $17k+5$ frame counts.
+- **Seed & Unbind Hardening (`cosmic_h3_loop.py`)**:
+  - Clamped `torch.Generator.manual_seed` into signed 64-bit positive range `[0, 2^63 - 1)` to prevent `RuntimeError` overflow on large 64-bit ComfyUI seeds.
+- **Frontend & Security Hardening (`js/h3_dynamic_models.js`, `h3_prompt/_providers.py`, `h3_director_routes.py`, `tools/inspect_wf.py`, `pyproject.toml`)**:
+  - Fixed relative import depth in `js/h3_dynamic_models.js` (`../../scripts/app.js` and `../../scripts/api.js`) to match `WEB_DIRECTORY = "./js"`.
+  - Restricted `h3_prompt/_providers.py` URL schemes to `http://` and `https://` (`_validate_http_url`) to block `file://`/`ftp://` SSRF via custom endpoint strings.
+  - Added cross-platform filename sanitization (`sanitize_upload_filename`) and media extension allowlisting (`UPLOAD_EXTENSIONS`) to `/cosmic_crafter_director_upload_chunk`.
+  - Replaced hardcoded Windows developer path in `tools/inspect_wf.py` with repo-relative `Path(__file__).resolve().parent.parent / "workflows"`.
+  - Upgraded `pyproject.toml` with `[build-system]`, `readme`, `requires-python`, `PublisherId`, and PyPI/ComfyUI Registry metadata.
+
+## Update 9 — H3 Continuity Studio vendored — 2026-11-21
+
+Merged the full authoring layer of **ComfyUI-H3-Continuity-Studio** (MIT,
+upstream `KadoBOT/ComfyUI-H3-Continuity-Studio` @ `16cc1779`, v1.3.0) into this
+pack. See `VENDORED.md` for provenance and the re-vendor procedure.
+
+### What landed
+
+- `h3_continuity/` — 19 V3 `io.ComfyNode` classes (`H3C_*`), the box-sequence
+  Timeline document model, sequence persistence (`store.py`, `media.py`),
+  carried-context engine, takes/bridges/replacements/regeneration, layers and
+  tracks, visual + cast memory, the ~20-module Story subsystem, the
+  `h3_prompt_*` IR/schema/compiler/validator pipeline, stills and reference
+  pipelines, audio/dialogue system, and the `/h3c/*` route surface.
+- `mcp_adapter/` — standalone `h3c-mcp` package (21 tools) driving the HTTP
+  surface; optional install, not a pack dependency.
+- `js/` — the 64-file Continuity Studio frontend merged alongside this pack's
+  own widgets (flat `WEB_DIRECTORY`; `.js` entries auto-load, `.mjs` modules
+  resolve relatively).
+- `skills/`, `docs/continuity/`, `guide/`, `examples/continuity/`,
+  `tests/h3c/`, `tools/h3c/`, `APACHE-2.0.txt` (required by the adapted
+  prompt spec — see `THIRD_PARTY_NOTICES.md`).
+
+### Wiring
+
+- `__init__.py` now calls `h3_continuity.routes.register()` (self-guards when
+  no PromptServer exists) and exposes `comfy_entrypoint()` returning the
+  `H3ContinuityExtension` — the 19 H3C nodes register as V3 alongside the
+  existing V1 mappings. No node-id, route-prefix, or custom-type collisions.
+- `requirements.txt` + `pyproject.toml` gained `jsonschema>=4,<5` and
+  `PyYAML>=6,<7` (upstream pins). `mcp_adapter` deps stay optional.
+
+### Verification
+
+- `h3_continuity` vendored byte-identical from upstream `16cc1779`; only
+  placement differs (`web/` merged into `js/`, tests under `tests/h3c/`).

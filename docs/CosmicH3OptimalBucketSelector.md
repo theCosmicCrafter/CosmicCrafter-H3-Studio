@@ -1,22 +1,29 @@
 # Cosmic Video | H3 Optimal Bucket Selector
 
-**Category:** `Cosmic/Video/H3`
+**Category:** `H3 Studio/Video`
 
 ## Description
 
-Snaps any width, height and frame request onto a resolution bucket and a 4k+1 frame count that MiniMax-H3 was trained on, so the sampler never sees an off-grid shape.
+Snaps any width, height and frame request onto a resolution bucket and a `17k+5` (or harmonic `51m+39`) frame count that MiniMax-H3 was trained on, so the sampler never sees an off-grid shape.
 
-Buckets: 1280x720, 720x1280, 1920x1080, 1080x1920, 960x544, 544x960, 832x480, 480x832, 720x720, 1024x1024, 1280x544. Frame counts: 17, 33, 49, 81, 121, 161, 201, 241, 321, 401, 513.
+Buckets: 1280x720, 720x1280, 1920x1080, 1080x1920, 960x544, 544x960, 832x480, 480x832, 720x720, 1024x1024, 1280x544.
+- **17k+5 (H3 Native) Frame Counts**: 5, 22, 39, 56, 73, 90, 107, 124, 141, 158, 175, 192, 209, 226, 243, 260, 277, 294, 311, 328, 345, 362, 379, 396, 413, 430, 447, 464, 481, 498, 515.
+- **51m+39 (H3 Harmonic AV) Frame Counts**: 39, 90, 141, 192, 243, 294, 345, 396, 447, 498.
+- **4k+1 (Legacy) Frame Counts**: 17, 33, 49, 81, 121, 161, 201, 241, 321, 401, 513.
 
 ## Inputs
 
 - **target_width**: Width you want. Aspect ratio is weighted twice as heavily as size when choosing a bucket.
 - **target_height**: Height you want. Only the ratio and rough area matter, not the exact number.
-- **target_frames**: Frames you want; snapped to the nearest 4k+1 bucket.
+- **target_frames**: Frames you want; snapped to the nearest bucket in `frame_grid_mode` (default `17k+5 (H3 Native)`).
 - **aspect_ratio_mode**: How the request's aspect ratio may be changed to reach a bucket.
   - `nearest_bucket`: the bucket with the closest aspect and size, whichever side of the request it falls on.
   - `crop_to_fit`: only buckets at least as wide as the request. The request is scaled to the bucket's width and the surplus height is trimmed.
   - `pad_to_fit`: only buckets no wider than the request. The request is scaled to the bucket's width and the missing height is added.
+- **frame_grid_mode** *(optional)*:
+  - `17k+5 (H3 Native)` (default): exact MiniMax H3 video causal VAE grid.
+  - `51m+39 (H3 Harmonic AV)`: zero-drift 24fps/40Hz joint audio-video alignment points.
+  - `4k+1 (Legacy)`: standard 4x temporal VAE grid.
 
 If no bucket qualifies (a request wider than 21:9 in crop mode, or narrower than 9:16 in pad mode) the nearest bucket is used and `bucket_name` says so.
 

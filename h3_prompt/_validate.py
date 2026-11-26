@@ -24,7 +24,7 @@ import re
 import importlib.util, sys
 from pathlib import Path
 
-_n="cosmic_nodes_v2.nodes.video.h3_prompt._spec"
+_n = "h3_studio.h3_prompt._spec"
 if _n in sys.modules:
     spec = sys.modules[_n]
 else:

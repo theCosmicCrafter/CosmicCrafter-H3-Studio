@@ -17,9 +17,10 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 
-TIMEOUT = 180
+TIMEOUT = 300
 
 PROVIDERS = ("ollama", "lmstudio", "openai", "anthropic", "gemini")
 
@@ -41,6 +42,14 @@ class ProviderError(RuntimeError):
     pass
 
 
+def _validate_http_url(url: str) -> str:
+    """Ensure only http:// and https:// URLs are passed to urlopen (blocks file://, ftp://, etc.)."""
+    parsed = urllib.parse.urlparse(str(url).strip())
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ProviderError(f"invalid endpoint URL {url!r}: only http:// and https:// endpoints are allowed")
+    return url
+
+
 def _key(provider: str, supplied: str = "") -> str:
     if supplied.strip():
         return supplied.strip()
@@ -52,6 +61,7 @@ def _key(provider: str, supplied: str = "") -> str:
 
 
 def _post(url: str, payload: dict, headers: dict) -> dict:
+    _validate_http_url(url)
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers={"Content-Type": "application/json", **headers})
     try:
@@ -65,10 +75,13 @@ def _post(url: str, payload: dict, headers: dict) -> dict:
 
 
 def _get(url: str, headers: dict | None = None) -> dict:
+    _validate_http_url(url)
     req = urllib.request.Request(url, headers=headers or {})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.loads(r.read().decode("utf-8", "replace"))
+    except ProviderError:
+        raise
     except Exception as e:
         raise ProviderError(f"cannot reach {url} ({e})") from None
 

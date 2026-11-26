@@ -44,7 +44,7 @@ class CosmicH3DynamicTilingDecoder:
                         "min": 64,
                         "max": 2048,
                         "step": 64,
-                        "tooltip": "Tile height in pixels (divided by 8 in latent space). 256 suits 8-12 GB.",
+                        "tooltip": "Tile height in pixels (divided by 8 or 16 in latent space). 256 suits 8-12 GB.",
                     },
                 ),
                 "tile_sample_min_width": (
@@ -64,7 +64,7 @@ class CosmicH3DynamicTilingDecoder:
                         "min": 8,
                         "max": 128,
                         "step": 8,
-                        "tooltip": "Overlap between tiles in pixels, rounded down to latent steps of 8. 32 hides seams.",
+                        "tooltip": "Overlap between tiles in pixels, rounded down to latent steps. 32 hides seams.",
                     },
                 ),
                 "temporal_tile_size": (
@@ -74,7 +74,7 @@ class CosmicH3DynamicTilingDecoder:
                         "min": 2,
                         "max": 64,
                         "step": 2,
-                        "tooltip": "Chunk length in LATENT frames, not output frames: 16 is about 61 frames out.",
+                        "tooltip": "Chunk length in LATENT frames, not output frames: 16 is about 56-61 frames out.",
                     },
                 ),
                 "temporal_overlap": (
@@ -105,6 +105,17 @@ class CosmicH3DynamicTilingDecoder:
             latent_tensor = samples.get("samples", None)
         else:
             latent_tensor = samples
+
+        # Unpack ComfyUI NestedTensor or [video, audio] list/tuple from joint H3 AV latents
+        if latent_tensor is not None and not isinstance(latent_tensor, torch.Tensor):
+            if hasattr(latent_tensor, "unbind") and callable(latent_tensor.unbind):
+                unpacked = latent_tensor.unbind()
+                latent_tensor = unpacked[0] if len(unpacked) > 0 else None
+            elif isinstance(latent_tensor, (list, tuple)) and len(latent_tensor) > 0:
+                latent_tensor = latent_tensor[0]
+        elif isinstance(latent_tensor, torch.Tensor) and getattr(latent_tensor, "is_nested", False):
+            unpacked = latent_tensor.unbind()
+            latent_tensor = unpacked[0] if len(unpacked) > 0 else None
 
         if latent_tensor is None or not isinstance(latent_tensor, torch.Tensor):
             raise ValueError("Invalid latent samples provided")
@@ -150,6 +161,22 @@ class CosmicH3DynamicTilingDecoder:
                 )
             raise e
 
+    @staticmethod
+    def _latent_to_pixel_frames(t_lat: int, channels: int) -> int:
+        """Convert latent temporal steps to pixel frame count.
+        24-channel MiniMax H3 video latents use (1,4,4,4,4) per 17-frame clip (5k+2 -> 17k+5);
+        4/16-channel video latents use 4k+1.
+        """
+        if channels == 24:
+            clips, rem = divmod(max(1, t_lat), 5)
+            return max(1, clips * 17 + (0 if rem == 0 else 1 + (rem - 1) * 4))
+        return max(1, t_lat * 4 - 3)
+
+    @staticmethod
+    def _spatial_scale(channels: int) -> int:
+        """24-channel MiniMax H3 latents use 16x spatial compression; 4/16-channel latents use 8x."""
+        return 16 if channels == 24 else 8
+
     def _decode_single_pass(self, vae: Any, latent: torch.Tensor) -> torch.Tensor:
         """Helper to invoke VAE decode on a single chunk or full tensor."""
         if hasattr(vae, "decode") and callable(vae.decode):
@@ -165,8 +192,9 @@ class CosmicH3DynamicTilingDecoder:
             else:
                 b, c, h, w = latent.shape
                 t = 1
-            t_pix = max(1, t * 4 - 3)
-            res = torch.ones((t_pix, h * 8, w * 8, 3), dtype=torch.float32, device=latent.device) * 0.5
+            s_scale = self._spatial_scale(c)
+            t_pix = self._latent_to_pixel_frames(t, c)
+            res = torch.ones((t_pix, h * s_scale, w * s_scale, 3), dtype=torch.float32, device=latent.device) * 0.5
 
         if isinstance(res, torch.Tensor):
             if res.ndim == 5:
@@ -200,14 +228,15 @@ class CosmicH3DynamicTilingDecoder:
         temp_overlap: int,
     ) -> torch.Tensor:
         b, c, t_lat, h_lat, w_lat = latent_tensor.shape
-        h_pix = h_lat * 8
-        w_pix = w_lat * 8
-        t_pix = max(1, t_lat * 4 - 3)
+        s_scale = self._spatial_scale(c)
+        h_pix = h_lat * s_scale
+        w_pix = w_lat * s_scale
+        t_pix = self._latent_to_pixel_frames(t_lat, c)
 
-        tile_h_lat = max(1, min_h // 8)
-        tile_w_lat = max(1, min_w // 8)
-        overlap_h_lat = max(1, spatial_overlap // 8)
-        overlap_w_lat = max(1, spatial_overlap // 8)
+        tile_h_lat = max(1, min_h // s_scale)
+        tile_w_lat = max(1, min_w // s_scale)
+        overlap_h_lat = max(1, spatial_overlap // s_scale)
+        overlap_w_lat = max(1, spatial_overlap // s_scale)
         tile_t_lat = max(1, temp_tile_size)
         overlap_t_lat = max(0, temp_overlap)
 
@@ -227,9 +256,8 @@ class CosmicH3DynamicTilingDecoder:
         accum_weight = torch.zeros((t_pix, h_pix, w_pix, 1), dtype=torch.float32, device=device)
 
         for t_start, t_end in t_slices:
-            t_sub_lat = t_end - t_start
-            t_p_start = max(0, t_start * 4 - 3) if t_start > 0 else 0
-            t_p_end = max(1, t_end * 4 - 3) if t_end < t_lat else t_pix
+            t_p_start = self._latent_to_pixel_frames(t_start, c) if t_start > 0 else 0
+            t_p_end = self._latent_to_pixel_frames(t_end, c) if t_end < t_lat else t_pix
             t_p_len = max(1, t_p_end - t_p_start)
 
             w_t = self._raised_cosine_window(
@@ -240,26 +268,26 @@ class CosmicH3DynamicTilingDecoder:
             )
 
             for h_start, h_end in h_slices:
-                h_p_start = h_start * 8
-                h_p_end = h_end * 8
+                h_p_start = h_start * s_scale
+                h_p_end = h_end * s_scale
                 h_p_len = max(1, h_p_end - h_p_start)
 
                 w_h = self._raised_cosine_window(
                     h_p_len,
-                    overlap_h_lat * 8 if h_start > 0 else 0,
-                    overlap_h_lat * 8 if h_end < h_lat else 0,
+                    overlap_h_lat * s_scale if h_start > 0 else 0,
+                    overlap_h_lat * s_scale if h_end < h_lat else 0,
                     device,
                 )
 
                 for w_start, w_end in w_slices:
-                    w_p_start = w_start * 8
-                    w_p_end = w_end * 8
+                    w_p_start = w_start * s_scale
+                    w_p_end = w_end * s_scale
                     w_p_len = max(1, w_p_end - w_p_start)
 
                     w_w = self._raised_cosine_window(
                         w_p_len,
-                        overlap_w_lat * 8 if w_start > 0 else 0,
-                        overlap_w_lat * 8 if w_end < w_lat else 0,
+                        overlap_w_lat * s_scale if w_start > 0 else 0,
+                        overlap_w_lat * s_scale if w_end < w_lat else 0,
                         device,
                     )
 
@@ -338,8 +366,8 @@ class CosmicH3OptimalBucketSelector:
     """Snaps target resolution and frame count to nearest MiniMax H3 training bucket."""
 
     DESCRIPTION = ("Snaps any width, height and frame request onto the nearest resolution "
-                   "and 4k+1 frame count MiniMax-H3 was actually trained on. Crop and pad "
-                   "modes restrict the choice to wider or narrower buckets and append the "
+                   "and 17k+5 (or harmonic 51m+39) frame count MiniMax-H3 was actually trained on. "
+                   "Crop and pad modes restrict the choice to wider or narrower buckets and append the "
                    "height to trim or add to bucket_name.")
 
     CATEGORY = "H3 Studio/Video"
@@ -363,8 +391,16 @@ class CosmicH3OptimalBucketSelector:
         (1280, 544, "1280x544_21:9_ultrawide"),
     ]
 
-    # Exact VAE 4x compression frame buckets (4k + 1)
-    FRAME_BUCKETS = [17, 33, 49, 81, 121, 161, 201, 241, 321, 401, 513]
+    # Exact MiniMax H3 causal VAE frame buckets: 17k + 5 (for k = 0..30)
+    FRAME_BUCKETS_H3 = [
+        5, 22, 39, 56, 73, 90, 107, 124, 141, 158, 175, 192, 209, 226, 243,
+        260, 277, 294, 311, 328, 345, 362, 379, 396, 413, 430, 447, 464, 481, 498, 515,
+    ]
+    # Harmonic AV frame buckets where 24fps video (17k+5) and 40Hz audio latents align with zero fractional drift (51m + 39)
+    FRAME_BUCKETS_HARMONIC = [39, 90, 141, 192, 243, 294, 345, 396, 447, 498]
+    # Legacy 4k + 1 frame buckets for 4x temporal VAEs
+    FRAME_BUCKETS_4K1 = [17, 33, 49, 81, 121, 161, 201, 241, 321, 401, 513]
+    FRAME_BUCKETS = FRAME_BUCKETS_H3
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -393,11 +429,11 @@ class CosmicH3OptimalBucketSelector:
                 "target_frames": (
                     "INT",
                     {
-                        "default": 81,
+                        "default": 124,
                         "min": 1,
-                        "max": 512,
+                        "max": 515,
                         "step": 1,
-                        "tooltip": "Frames you want; snapped to the nearest of 17, 33, 49, 81 ... 513.",
+                        "tooltip": "Frames you want; snapped to the nearest MiniMax H3 17k+5 bucket (5, 22, 39, 56, 73, 90, 107, 124 ... 515).",
                     },
                 ),
                 "aspect_ratio_mode": (
@@ -408,8 +444,19 @@ class CosmicH3OptimalBucketSelector:
                                     "crop_to_fit: bucket at least as wide as the request; trim height. "
                                     "pad_to_fit: bucket no wider than the request; add height."),
                     },
-                )
-            }
+                ),
+            },
+            "optional": {
+                "frame_grid_mode": (
+                    ["17k+5 (H3 Native)", "51m+39 (H3 Harmonic AV)", "4k+1 (Legacy)"],
+                    {
+                        "default": "17k+5 (H3 Native)",
+                        "tooltip": ("17k+5 (H3 Native): exact MiniMax H3 video VAE grid. "
+                                    "51m+39 (H3 Harmonic AV): zero-drift 24fps/40Hz AV alignment points. "
+                                    "4k+1 (Legacy): standard 4x temporal VAE grid."),
+                    },
+                ),
+            },
         }
 
     # Relative tolerance when deciding whether a bucket is "at least as wide"
@@ -434,8 +481,9 @@ class CosmicH3OptimalBucketSelector:
         self,
         target_width: int = 1280,
         target_height: int = 720,
-        target_frames: int = 81,
+        target_frames: int = 124,
         aspect_ratio_mode: str = "nearest_bucket",
+        frame_grid_mode: str = "17k+5 (H3 Native)",
     ) -> Tuple[int, int, int, float, str]:
         # Handle non-positive or small inputs
         w_in = max(128, target_width)
@@ -482,8 +530,14 @@ class CosmicH3OptimalBucketSelector:
             logger.info("CosmicH3OptimalBucketSelector: %dx%d -> %s%s", w_in, h_in, bucket_name, fit_note)
             bucket_name = bucket_name + fit_note
 
-        # Snap frame count to nearest VAE 4x bucket (4k + 1)
-        snapped_f = min(self.FRAME_BUCKETS, key=lambda f: abs(f - f_in))
+        # Snap frame count to the chosen grid
+        if frame_grid_mode == "51m+39 (H3 Harmonic AV)":
+            frame_candidates = self.FRAME_BUCKETS_HARMONIC
+        elif frame_grid_mode == "4k+1 (Legacy)":
+            frame_candidates = self.FRAME_BUCKETS_4K1
+        else:
+            frame_candidates = self.FRAME_BUCKETS_H3
+        snapped_f = min(frame_candidates, key=lambda f: abs(f - f_in))
 
         return (snapped_w, snapped_h, snapped_f, float(aspect_ratio), bucket_name)
 
